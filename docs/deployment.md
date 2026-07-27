@@ -2,6 +2,10 @@
 
 像序当前是纯静态 HTML/CSS/JavaScript 项目，没有 `package.json`、构建步骤或前端路由。
 
+生产项目：`xiangxu`
+
+正式地址：<https://xiangxu.vercel.app>
+
 ## 项目设置
 
 - Framework Preset：`Other`
@@ -23,3 +27,9 @@
 - Vercel 不应承载 AI 推理或接收用户图片；推理仍在浏览器 CPU/WASM 中执行。
 
 `.vercel/` 只包含本机项目绑定信息，已由 `.gitignore` 排除。
+
+## 当前验收状态
+
+- Vercel 控制面显示生产部署为 Ready。
+- 用户已确认正式地址可从其网络环境打开。
+- 当前自动化执行环境连接 `*.vercel.app` 超时，因此仍需在可访问网络中复核浏览器控制台和完整图片处理、导出交互。

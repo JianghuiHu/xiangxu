@@ -30,11 +30,8 @@
 
 ## 需要用户确认
 
-- GitHub 仓库地址及仓库名称。
-- Public 或 Private。
 - 像序项目代码采用的许可证；当前没有 `LICENSE` 文件。
 - 是否创建 `v1.0.0` Release，以及 Release 是否附带桌面包。
-- Vercel 项目名称和部署后的正式 URL。
 - 用户提供的品牌 Logo 是否拥有公开分发授权。
 - PP-MattingV2 转换权重是否作为独立 Release 附件重新分发。
 
@@ -57,6 +54,8 @@
 - 没有前端子路由，不创建无用的 `vercel.json` rewrite。
 - HTML、Worker、WASM 和模块引用均使用大小写一致的正斜杠相对路径。
 - 在不包含 ONNX 权重的模拟部署目录中完成真实加载和批量导出测试。
+- Vercel 项目为 `xiangxu`，生产部署状态为 Ready，正式地址为 <https://xiangxu.vercel.app>。
+- 用户已确认正式地址可从其网络环境打开；当前执行环境连接 `*.vercel.app` 超时，因此部署后的控制台与完整交互测试尚未在该环境重复执行。
 
 ## 测试结论
 

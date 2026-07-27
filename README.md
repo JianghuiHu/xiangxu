@@ -6,7 +6,7 @@
 
 ## 在线使用
 
-Vercel 正式地址将在项目名称和远程仓库确认后补充。当前可使用下方本地启动方式。
+[打开像序网页版](https://xiangxu.vercel.app)
 
 部署配置见 [docs/deployment.md](docs/deployment.md)。
 

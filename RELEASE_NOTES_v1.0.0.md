@@ -28,10 +28,13 @@ GitHub 源码和 Vercel 网页版不包含 PP-MattingV2 或 u2netp 权重。PP-M
 - Safari 不支持直接文件夹写入时会回退到 ZIP 导出。
 - AI 推理使用 CPU/WASM，首次加载和推理速度受设备性能影响。
 - 手机端不是本版本的主要交互目标。
+- Vercel 生产部署已就绪，用户已确认正式地址可打开；自动化执行环境连接 `*.vercel.app` 超时，未在该环境重复执行线上控制台和完整交互测试。
 
 ## 发布前待确认
 
 - 项目开源许可证。
-- GitHub 仓库公开状态。
 - 是否创建并附加桌面包到 v1.0.0 Release。
-- Vercel 正式项目名称与线上地址。
+
+源码仓库：<https://github.com/JianghuiHu/xiangxu>
+
+网页版：<https://xiangxu.vercel.app>
