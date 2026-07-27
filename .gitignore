@@ -1,0 +1,52 @@
+# Generated releases and desktop artifacts
+dist/
+*.exe
+*.zip
+
+# Local backups and generated caches
+backup_legacy/
+backup/
+*.bak
+__pycache__/
+*.py[cod]
+.cache/
+.temp/
+tmp/
+coverage/
+.vite/
+.parcel-cache/
+*.log
+
+# Environment and deployment metadata
+.env
+.env.*
+!.env.example
+.vercel/
+
+# Local exports and test output
+exports/
+output/
+downloads/
+test-output/
+screenshots-local/
+
+# Optional local AI model weights
+assets/models/*.onnx
+models/*.onnx
+models/*.bin
+models/*.safetensors
+models/*.pt
+models/*.pth
+models/*.ckpt
+
+# OS and editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Local development/task records
+CODEX_TASK.md
+CODEX_GITHUB_RELEASE_TASK.md
+PROGRESS.md

@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="像序是一款本地优先的图片批处理工作台，支持批量裁切、缩放、统一画布、压缩、格式转换、水印、预设与单图自定义设置。">
+  <title>像序｜万象归序，创作从容</title>
+  <link rel="icon" type="image/png" href="./assets/logo.png">
+  <link rel="stylesheet" href="./css/reset.css">
+  <link rel="stylesheet" href="./css/tokens.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/utilities.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <header class="topbar">
+      <div class="brand-group">
+        <div class="brand-mark" aria-hidden="true"><img src="./assets/logo.png" alt=""></div>
+        <div class="brand-copy"><strong>像序</strong><span>万象归序，创作从容</span></div>
+      </div>
+      <nav class="topbar-actions" aria-label="任务操作">
+        <button class="button button-ghost" id="new-task-button" type="button">新建任务</button>
+      </nav>
+      <div class="preset-status"><span>当前预设</span><button class="current-preset-button" id="current-preset-name" type="button" title="点击命名或重命名预设">未命名任务</button></div>
+      <nav class="history-actions" aria-label="历史操作"><button class="icon-button" id="undo-button" type="button" disabled title="撤销（Ctrl+Z）">↶</button><button class="icon-button" id="redo-button" type="button" disabled title="重做（Ctrl+Y）">↷</button></nav>
+      <nav class="topbar-actions topbar-preset-actions" aria-label="预设操作">
+        <button class="button button-preset-open" id="open-presets-button" type="button">打开预设</button>
+        <button class="button button-preset-save" id="save-preset-button" type="button">保存预设</button>
+      </nav>
+    </header>
+
+    <div class="privacy-strip"><span class="status-dot"></span>所有图片仅在当前浏览器本地处理，不会上传服务器。</div>
+
+    <main class="workspace" id="drop-zone">
+      <aside class="sidebar sidebar-left" aria-label="图片队列">
+        <div class="panel-heading">
+          <div><span class="eyebrow">资源</span><h1>图片队列</h1></div>
+          <span class="count-badge" id="image-count">0</span>
+        </div>
+        <div class="import-actions">
+          <button class="button button-primary button-block" id="add-images-button" type="button">＋ 添加图片</button>
+          <div class="button-row">
+            <button class="button button-secondary" id="add-folder-button" type="button">添加文件夹</button>
+            <button class="button button-secondary" id="paste-button" type="button">粘贴图片</button>
+          </div>
+          <input id="file-input" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/svg+xml,image/gif" multiple>
+          <input id="folder-input" class="visually-hidden" type="file" accept="image/*" webkitdirectory multiple>
+        </div>
+        <div class="list-tools">
+          <label class="search-field"><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="搜索文件名" aria-label="搜索文件名"></label>
+          <select id="sort-select" aria-label="图片排序">
+            <option value="importOrder">导入顺序</option>
+            <option value="name">文件名</option>
+            <option value="width">宽度</option>
+            <option value="height">高度</option>
+            <option value="size">文件大小</option>
+            <option value="extension">格式</option>
+          </select>
+          <select id="settings-mode-filter" aria-label="设置模式筛选"><option value="all">全部</option><option value="global">统一</option><option value="custom">自定义</option></select>
+        </div>
+        <div class="selection-tools">
+          <label><input id="select-all-checkbox" type="checkbox"> 全选</label>
+          <div>
+            <button class="text-button danger" id="delete-selected-button" type="button" disabled>删除选中</button>
+            <button class="text-button" id="clear-button" type="button" disabled>清空</button>
+          </div>
+        </div>
+        <div class="image-list" id="image-list" role="list" aria-live="polite">
+          <div class="empty-list" id="empty-list">
+            <div class="empty-icon" aria-hidden="true">▧</div>
+            <strong>还没有图片</strong>
+            <span>选择、拖入或粘贴图片</span>
+            <small>支持 PNG、JPG、WebP、BMP、SVG</small>
+          </div>
+        </div>
+      </aside>
+
+      <section class="preview-column" aria-label="图片预览">
+        <div class="preview-toolbar">
+          <div class="segmented-control" aria-label="预览模式">
+            <button class="segment" id="original-mode-button" data-preview-mode="original" type="button">原图</button>
+            <button class="segment active" id="processed-mode-button" data-preview-mode="processed" type="button">处理后</button>
+            <button class="segment" id="compare-mode-button" data-preview-mode="compare" type="button">左右对比</button>
+          </div>
+          <div class="zoom-controls">
+            <button class="icon-button" id="zoom-out-button" type="button" aria-label="缩小">−</button>
+            <button class="zoom-label" id="fit-button" type="button">适应窗口</button>
+            <button class="icon-button" id="zoom-in-button" type="button" aria-label="放大">＋</button>
+          </div>
+          <div class="background-controls" aria-label="预览背景">
+            <button class="swatch checker active" data-background="checker" type="button" aria-label="棋盘格背景"></button>
+            <button class="swatch white" data-background="white" type="button" aria-label="白色背景"></button>
+            <button class="swatch black" data-background="black" type="button" aria-label="黑色背景"></button>
+          </div>
+          <div class="image-settings-control" id="image-settings-control" title="该图片使用当前任务的统一处理参数"><span>当前图片</span><div class="settings-mode-choice" id="image-settings-mode" role="radiogroup" aria-label="当前图片设置模式"><button class="settings-mode-option global" type="button" role="radio" data-settings-mode="global" aria-checked="true" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v4H4V5Zm0 6h16v8H4v-8Zm2 2v4h12v-4H6Z"/></svg><span>统一</span></button><button class="settings-mode-option custom" type="button" role="radio" data-settings-mode="custom" aria-checked="false" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17v2h6v-2H3Zm0-7v2h12v-2H3Zm0-7v2h18V3H3Zm10 16v-2h8v2h-8Zm4-7v-2h4v2h-4ZM7 5V3h14v2H7Z"/></svg><span>自定义</span></button></div></div>
+        </div>
+        <div class="preview-stage checkerboard" id="preview-stage" tabindex="0">
+          <div class="drop-overlay" id="drop-overlay"><strong>松开即可导入</strong><span>图片只会在本地读取</span></div>
+          <div class="ai-preview-loading is-hidden" id="ai-preview-loading" role="status" aria-live="polite"><div class="ai-loading-card"><span class="ai-loading-icon" aria-hidden="true"></span><strong id="ai-preview-loading-label">正在准备 AI 模型…</strong><small>首次运行需要初始化本地模型，后续会复用缓存</small><progress id="ai-preview-loading-progress" max="100" value="0"></progress></div></div>
+          <div class="preview-empty" id="preview-empty">
+            <div class="preview-placeholder" aria-hidden="true"><span></span><span></span><span></span></div>
+            <h2>导入图片开始处理</h2>
+            <p>拖放图片到此处，或使用左侧按钮选择文件</p>
+            <button class="button button-primary" id="empty-add-button" type="button">选择图片</button>
+          </div>
+          <figure class="preview-figure is-hidden" id="preview-figure">
+            <div class="canvas-wrap" id="canvas-wrap"><canvas id="preview-canvas" aria-label="当前图片预览"></canvas><canvas class="ai-brush-overlay" id="ai-brush-overlay" aria-hidden="true"></canvas><div class="crop-guides is-hidden" id="crop-guides" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span class="ai-brush-cursor is-hidden" id="ai-brush-cursor" aria-hidden="true"></span></div>
+          </figure>
+        </div>
+        <div class="preview-info" id="preview-info"><span>未选择图片</span><span>—</span><span>—</span></div>
+      </section>
+
+      <aside class="sidebar sidebar-right" aria-label="处理参数">
+        <div class="panel-heading right-heading"><div><span class="eyebrow">设置</span><h2>处理参数</h2></div><button class="text-button" id="reset-settings-button" type="button">恢复默认</button></div>
+        <div class="settings-scroll" id="settings-panel">
+          <div class="settings-scope-banner" id="settings-scope-banner"><span class="settings-mode-dot"></span><div><strong id="settings-scope-title">正在编辑：统一参数</strong><small id="settings-scope-description">将应用于所有使用统一设置的图片</small></div></div>
+          <section class="pipeline-overview" aria-label="处理流水线概览"><div class="pipeline-heading"><span><b>FLOW</b>处理流水线</span><small>点击节点可定位设置</small></div><ol class="pipeline-flow"><li data-section-target="ai-section" tabindex="0" role="button"><span>01</span><strong>AI 抠图</strong><em id="pipeline-ai-status">未安装模型</em></li><li data-section-target="trim-section" tabindex="0" role="button"><span>02</span><strong>去边</strong><em id="pipeline-trim-status">已关闭</em></li><li data-section-target="crop-section" tabindex="0" role="button"><span>03</span><strong>裁切</strong><em id="pipeline-crop-status">已关闭</em></li><li data-section-target="content-size-section" tabindex="0" role="button"><span>04</span><strong>内容尺寸</strong><em id="pipeline-resize-status">已关闭</em></li><li data-section-target="mask-section" tabindex="0" role="button"><span>05</span><strong>蒙版</strong><em id="pipeline-mask-status">已关闭</em></li><li data-section-target="canvas-section" tabindex="0" role="button"><span>06</span><strong>最终画布</strong><em id="pipeline-canvas-status">已关闭</em></li><li data-section-target="color-section" tabindex="0" role="button"><span>07</span><strong>颜色 / 水印</strong><em id="pipeline-effects-status">已关闭</em></li></ol></section>
+          <section class="setting-card" id="ai-section"><button class="setting-title" type="button"><span><b>AI</b>AI 一键抠图</span><i>⌃</i></button><div class="setting-body">
+            <p class="section-explainer"><strong>本地 AI 抠图</strong>模型只在启用 AI 时加载，图片和推理数据不会上传。PP-MattingV2 主要面向人物，不等同于通用商品抠图。</p>
+            <label class="switch-row"><span><strong>启用 AI 抠图</strong><small>透明结果进入后续去边、画布与输出流程</small></span><input id="ai-enabled" type="checkbox" disabled></label>
+            <label class="control-label">模型<select id="ai-model-select"><option value="ppmattingv2">PP-MattingV2 · 可选人像模型</option><option value="u2netp">u2netp · 可选通用模型</option></select></label>
+            <div class="ai-model-status" id="ai-model-status"><span class="status-dot"></span><div><strong>正在检测模型</strong><small>首次启动不会自动下载模型</small></div></div>
+            <div class="button-row ai-model-actions"><button class="button button-secondary" id="ai-download-model" type="button">下载所选模型</button><button class="button button-secondary is-hidden" id="ai-cancel-model-download" type="button">取消下载</button><button class="button button-secondary danger-text" id="ai-delete-model" type="button" disabled>删除已下载模型</button></div>
+            <label class="range-control"><span>前景阈值 <output id="ai-threshold-output">0.50</output></span><input id="ai-threshold" type="range" min="0.05" max="0.95" step="0.05" value="0.5"></label>
+            <label class="range-control"><span>阈值过渡 <output id="ai-softness-output">0.12</output></span><input id="ai-softness" type="range" min="0" max="0.4" step="0.02" value="0.12"></label>
+            <label class="range-control"><span>边缘羽化 <output id="ai-feather-output">2 px</output></span><input id="ai-feather" type="range" min="0" max="24" step="1" value="2"></label>
+            <label class="range-control"><span>边缘扩缩 <output id="ai-edge-shift-output">0 px</output></span><input id="ai-edge-shift" type="range" min="-24" max="24" step="1" value="0"></label>
+            <p class="control-hint">负值向内收缩，正值向外扩展；这两项复用已有 Mask，不会重复加载模型。</p>
+            <div class="subsection-divider"><span>手动画笔修补 · 当前图片</span></div>
+            <label class="range-control"><span>画笔大小 <output id="ai-brush-size-output">36 px</output></span><input id="ai-brush-size" type="range" min="4" max="160" step="2" value="36"></label>
+            <div class="ai-brush-toolbar" role="toolbar" aria-label="AI Mask 修补工具"><button class="button button-secondary" type="button" data-ai-brush-mode="add">＋ 增加区域</button><button class="button button-secondary" type="button" data-ai-brush-mode="erase">－ 减少区域</button><button class="button button-secondary" id="ai-brush-exit" type="button">退出画笔</button></div>
+            <div class="ai-brush-meta"><span id="ai-brush-status">画笔未启用</span><button class="text-button danger" id="ai-brush-clear" type="button" disabled>清除当前图笔触</button></div>
+            <button class="button button-secondary button-block compact-button" id="ai-reset-adjustments" type="button">一键还原抠图</button>
+            <div class="ai-progress-panel is-hidden" id="ai-progress-panel" role="status" aria-live="polite"><div><strong id="ai-progress-label">准备中</strong><span id="ai-progress-percent">0%</span></div><progress class="ai-progress" id="ai-progress" max="100" value="0" aria-label="AI 模型处理进度"></progress><small id="ai-progress-hint">模型只在本机加载与运行</small></div>
+            <p class="stage-note">GitHub/Vercel 源码版不包含 PP-MattingV2 权重；u2netp 仅在你点击下载后获取。模型推理和图片始终在本机完成。</p>
+          </div></section>
+          <section class="setting-card" id="trim-section"><button class="setting-title" type="button"><span><b>01</b>自动去边</span><i>⌃</i></button><div class="setting-body">
+            <label class="switch-row"><span><strong>启用自动去边</strong><small>检测主体有效边界后裁除边缘</small></span><input id="trim-enabled" type="checkbox"></label>
+            <label class="control-label">检测类型<select id="trim-mode"><option value="transparent">透明边缘</option><option value="white">白色/指定颜色边缘</option></select></label>
+            <label class="color-control is-hidden" id="trim-color-row"><span>边缘颜色</span><input id="trim-color" type="color" value="#ffffff"><input id="trim-color-text" type="text" value="#FFFFFF" maxlength="7" aria-label="去边颜色十六进制值"></label>
+            <label class="range-control"><span>颜色容差 <output id="trim-tolerance-output">20</output></span><input id="trim-tolerance" type="range" min="0" max="100" value="20"></label>
+            <label class="control-label">额外保留边距（px）<input id="trim-padding" type="number" min="0" max="2048" value="0"></label>
+          </div></section>
+          <section class="setting-card expanded" id="content-size-section"><button class="setting-title" type="button"><span><b>02</b>内容尺寸与缩放</span><i>⌃</i></button><div class="setting-body">
+            <p class="section-explainer"><strong>内容包围盒</strong>控制图片在画布内最多占多大；不会改变最终文件尺寸。</p>
+            <label class="switch-row"><span><strong>限制内容尺寸</strong><small>按目标包围盒缩放图片主体</small></span><input id="resize-enabled" type="checkbox"></label>
+            <div class="field-grid"><label>内容宽度<input id="resize-width" type="number" value="1024" min="1" max="16384"></label><span class="dimension-link">×</span><label>内容高度<input id="resize-height" type="number" value="1024" min="1" max="16384"></label></div>
+            <label class="control-label">缩放模式<select id="resize-mode"><option value="contain">Contain · 完整显示</option><option value="cover">Cover · 填满裁切</option><option value="stretch">Stretch · 强制拉伸</option></select></label>
+            <label class="control-label">插值质量<select id="resize-quality"><option value="high">高质量</option><option value="medium">标准</option><option value="low">快速</option></select></label>
+            <p class="inline-warning is-hidden" id="stretch-warning">Stretch 会改变原图宽高比例。</p>
+            <div class="subsection-divider"><span>视觉主体统一</span></div>
+            <label class="switch-row"><span><strong>统一主体占比</strong><small>先检测有效内容，再按画布百分比约束</small></span><input id="subject-enabled" type="checkbox"></label>
+            <div class="field-grid"><label>最大宽度（%）<input id="subject-width" type="number" min="5" max="100" value="80"></label><span class="dimension-link">×</span><label>最大高度（%）<input id="subject-height" type="number" min="5" max="100" value="72"></label></div>
+            <p class="stage-note success-note">主体的位置由下方九宫格统一控制；两项同时开启时，像素与百分比限制取更严格的一项。</p>
+          </div></section>
+          <section class="setting-card" id="crop-section"><button class="setting-title" type="button"><span><b>03</b>裁切</span><i>⌃</i></button><div class="setting-body">
+            <label class="switch-row"><span><strong>启用裁切</strong><small>可在预览中拖动图片</small></span><input id="crop-enabled" type="checkbox"></label>
+            <label class="control-label">裁切方式<select id="crop-mode"><option value="free">自由裁切</option><option value="1:1">固定比例 1:1</option><option value="4:3">固定比例 4:3</option><option value="3:4">固定比例 3:4</option><option value="16:9">固定比例 16:9</option><option value="9:16">固定比例 9:16</option><option value="3:2">固定比例 3:2</option><option value="2:3">固定比例 2:3</option><option value="21:9">固定比例 21:9</option><option value="custom">自定义比例</option></select></label>
+            <div class="field-grid" id="free-crop-size"><label>宽度（%）<input id="crop-free-width" type="number" value="100" min="5" max="100"></label><span class="dimension-link">×</span><label>高度（%）<input id="crop-free-height" type="number" value="100" min="5" max="100"></label></div>
+            <div class="field-grid is-hidden" id="custom-crop-ratio"><label>比例宽<input id="crop-ratio-width" type="number" value="5" min="1" max="100"></label><span class="dimension-link">:</span><label>比例高<input id="crop-ratio-height" type="number" value="4" min="1" max="100"></label></div>
+            <label class="range-control"><span>裁切缩放 <output id="crop-zoom-output">100%</output></span><input id="crop-zoom" type="range" value="1" min="1" max="5" step="0.05"></label>
+            <label class="control-label">辅助线<select id="crop-guides-select"><option value="thirds">三分法</option><option value="grid">九宫格</option><option value="none">不显示</option></select></label>
+            <button class="button button-secondary button-block compact-button" id="reset-crop-position" type="button">恢复裁切位置</button>
+          </div></section>
+          <section class="setting-card" id="mask-section"><button class="setting-title" type="button"><span><b>04</b>形状蒙版</span><i>⌃</i></button><div class="setting-body">
+            <label class="switch-row"><span><strong>启用蒙版</strong><small>蒙版外区域保持透明</small></span><input id="mask-enabled" type="checkbox"></label>
+            <label class="control-label">形状<select id="mask-type"><option value="rectangle">矩形</option><option value="square">正方形</option><option value="circle">圆形</option><option value="ellipse">椭圆</option><option value="rounded">圆角矩形</option><option value="capsule">胶囊形</option></select></label>
+            <label class="control-label" id="mask-radius-row">圆角半径（px）<input id="mask-radius" type="number" value="32" min="0" max="4096"></label>
+          </div></section>
+          <section class="setting-card" id="canvas-section"><button class="setting-title" type="button"><span><b>05</b>最终画布与背景</span><i>⌃</i></button><div class="setting-body">
+            <p class="section-explainer"><strong>最终输出画布</strong>决定导出文件的宽高；内容尺寸决定图片在其中的占用范围。</p>
+            <label class="switch-row"><span><strong>固定最终画布</strong><small>启用后导出尺寸以这里为准</small></span><input id="canvas-enabled" type="checkbox"></label>
+            <div class="field-grid"><label>最终宽度<input id="canvas-width" type="number" value="1024" min="1" max="16384"></label><span class="dimension-link">×</span><label>最终高度<input id="canvas-height" type="number" value="1024" min="1" max="16384"></label></div>
+            <label class="control-label">背景<select id="background-type"><option value="transparent">透明</option><option value="solid">纯色</option></select></label>
+            <label class="color-control" id="background-color-row"><span>背景颜色</span><input id="background-color" type="color" value="#ffffff"><input id="background-color-text" type="text" value="#FFFFFF" maxlength="7" aria-label="背景十六进制颜色"></label>
+          </div></section>
+          <section class="setting-card" id="position-section"><button class="setting-title" type="button"><span><b>06</b>边距与位置</span><i>⌃</i></button><div class="setting-body">
+            <label class="control-label">统一边距（px）<input id="margin-all" type="number" value="0" min="0" max="8192"></label>
+            <span class="control-caption">九宫格定位 <small>内容小于最终画布时效果最明显</small></span>
+            <div class="alignment-grid" id="alignment-grid" role="group" aria-label="九宫格定位">
+              <button type="button" data-alignment="top-left" aria-label="左上">↖</button><button type="button" data-alignment="top" aria-label="顶部">↑</button><button type="button" data-alignment="top-right" aria-label="右上">↗</button>
+              <button type="button" data-alignment="left" aria-label="左侧">←</button><button class="active" type="button" data-alignment="center" aria-label="居中">•</button><button type="button" data-alignment="right" aria-label="右侧">→</button>
+              <button type="button" data-alignment="bottom-left" aria-label="左下">↙</button><button type="button" data-alignment="bottom" aria-label="底部">↓</button><button type="button" data-alignment="bottom-right" aria-label="右下">↘</button>
+            </div>
+            <div class="field-grid offset-grid"><label>X 偏移<input id="offset-x" type="number" value="0" min="-8192" max="8192"></label><span class="dimension-link">/</span><label>Y 偏移<input id="offset-y" type="number" value="0" min="-8192" max="8192"></label></div>
+          </div></section>
+          <section class="setting-card" id="color-section"><button class="setting-title" type="button"><span><b>07</b>颜色处理</span><i>⌃</i></button><div class="setting-body">
+            <label class="switch-row"><span><strong>启用颜色处理</strong><small>透明像素不会被误处理</small></span><input id="color-enabled" type="checkbox"></label>
+            <label class="control-label">处理方式<select id="color-mode"><option value="none">仅调整参数</option><option value="replace">近似颜色替换</option><option value="colorToTransparent">选取颜色转透明</option><option value="grayscale">灰度化</option><option value="invert">反白</option></select></label>
+            <div class="color-control is-hidden" id="color-source-row"><span id="color-source-label">来源颜色</span><input id="color-source" type="color" value="#ffffff"><input id="color-source-text" type="text" value="#FFFFFF" maxlength="7" aria-label="来源颜色十六进制值"></div>
+            <div class="color-control is-hidden" id="color-target-row"><span>目标颜色</span><input id="color-target" type="color" value="#000000"><input id="color-target-text" type="text" value="#000000" maxlength="7" aria-label="目标颜色十六进制值"></div>
+            <label class="range-control is-hidden" id="color-tolerance-row"><span>颜色容差 <output id="color-tolerance-output">24</output></span><input id="color-tolerance" type="range" min="0" max="100" value="24"></label>
+            <div class="field-grid"><label>亮度（%）<input id="color-brightness" type="number" min="0" max="200" value="100"></label><span class="dimension-link">/</span><label>对比度（%）<input id="color-contrast" type="number" min="0" max="200" value="100"></label></div>
+            <div class="field-grid"><label>饱和度（%）<input id="color-saturation" type="number" min="0" max="200" value="100"></label><span class="dimension-link">/</span><label>透明度（%）<input id="color-opacity" type="number" min="0" max="100" value="100"></label></div>
+          </div></section>
+          <section class="setting-card" id="watermark-section"><button class="setting-title" type="button"><span><b>08</b>水印</span><i>⌃</i></button><div class="setting-body">
+            <label class="switch-row"><span><strong>启用水印</strong><small>文字或本地 Logo，实时预览</small></span><input id="watermark-enabled" type="checkbox"></label>
+            <label class="control-label">水印类型<select id="watermark-type"><option value="text">文字水印</option><option value="image">图片 / Logo</option></select></label>
+            <label class="control-label" id="watermark-text-row">文字<input id="watermark-text" type="text" value="© 像序"></label>
+            <div id="watermark-image-row" class="is-hidden watermark-upload-box"><div><strong id="watermark-image-status">尚未选择 Logo</strong><small>支持 PNG、JPG、WebP、SVG，图片会保存在预设中</small></div><div class="watermark-upload-actions"><label class="button button-secondary file-picker-label">选择 Logo<input class="visually-hidden" id="watermark-image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label><button class="text-button danger" id="clear-watermark-image" type="button">移除</button></div><label class="control-label">相对画布宽度（%）<input id="watermark-image-scale" type="number" min="1" max="100" value="20"></label></div>
+            <label class="control-label" id="watermark-text-size-row">字号（px）<input id="watermark-size" type="number" min="8" max="512" value="32"></label>
+            <label class="control-label">透明度（%）<input id="watermark-opacity" type="number" min="1" max="100" value="65"></label>
+            <label class="control-label">位置<select id="watermark-alignment"><option value="top-left">左上</option><option value="top-right">右上</option><option value="center">居中</option><option value="bottom-left">左下</option><option value="bottom-right" selected>右下</option></select></label>
+            <label class="switch-row"><span><strong>平铺水印</strong><small>覆盖整个画布</small></span><input id="watermark-tiled" type="checkbox"></label>
+          </div></section>
+          <section class="setting-card expanded" id="output-section"><button class="setting-title" type="button"><span><b>09</b>输出与压缩</span><i>⌃</i></button><div class="setting-body">
+            <label class="control-label">输出格式<select id="output-format"><option value="png">PNG · 保留透明</option><option value="jpeg">JPG · 较小体积</option><option value="webp">WebP · 网页优化</option></select></label>
+            <label class="range-control" id="output-quality-row"><span>编码质量 <output id="output-quality-label">90</output></span><input id="output-quality" type="range" value="90" min="1" max="100" step="1"></label>
+            <label class="color-control is-hidden" id="jpeg-background-row"><span>JPG 背景</span><input id="jpeg-background" type="color" value="#ffffff"><input id="jpeg-background-text" type="text" value="#FFFFFF" maxlength="7" aria-label="JPG 背景十六进制颜色"></label>
+            <label class="control-label">导出方式<select id="export-mode"><option value="zip" selected>安全 ZIP（推荐）</option><option value="folder">直接写入已授权文件夹（高级）</option></select></label>
+            <div class="export-location" id="export-location"><div><span>默认导出位置</span><strong id="export-folder-name">未选择 · 导出时询问</strong></div><button class="button button-secondary" id="choose-export-folder" type="button">选择文件夹</button></div>
+            <p class="stage-note" id="export-location-note">首次导出会打开系统文件夹选择器，之后优先从上次目录开始。</p>
+            <label class="switch-row"><span><strong>限制单张目标体积</strong><small>JPG/WebP 二分质量，必要时缩小尺寸</small></span><input id="target-size-enabled" type="checkbox"></label>
+            <div class="field-grid" id="target-size-fields"><label>目标（KB）<input id="target-size-kb" type="number" min="1" max="102400" value="200"></label><span class="dimension-link">/</span><label>最低质量<input id="target-min-quality" type="number" min="1" max="100" value="20"></label></div>
+            <label class="switch-row"><span><strong>允许降低分辨率</strong><small>最低质量仍超标时逐级缩小</small></span><input id="target-allow-resize" type="checkbox"></label>
+            <p class="stage-note">全部编码和打包均在当前浏览器本地完成。</p>
+          </div></section>
+          <section class="setting-card" id="naming-section"><button class="setting-title" type="button"><span><b>10</b>文件命名</span><i>⌃</i></button><div class="setting-body">
+            <label class="control-label">命名模板<input id="filename-template" type="text" value="{原文件名}_{宽度}x{高度}" aria-label="文件命名模板"></label>
+            <div class="field-grid"><label>起始序号<input id="sequence-start" type="number" value="1" min="0" max="999999"></label><span class="dimension-link">/</span><label>补零位数<input id="sequence-digits" type="number" value="3" min="1" max="8"></label></div>
+            <p class="template-help">变量：{原文件名} {序号} {宽度} {高度} {格式} {日期} {时间}</p>
+            <div class="filename-preview">预览：<strong id="filename-preview">image_001.png</strong></div>
+          </div></section>
+          <section class="setting-card" id="sprite-section"><button class="setting-title" type="button"><span><b>11</b>Sprite Sheet</span><i>⌃</i></button><div class="setting-body">
+            <div class="field-grid"><label>单元格宽<input id="sprite-cell-width" type="number" min="1" max="4096" value="64"></label><span class="dimension-link">×</span><label>单元格高<input id="sprite-cell-height" type="number" min="1" max="4096" value="64"></label></div>
+            <div class="field-grid"><label>图片间距<input id="sprite-gap" type="number" min="0" max="256" value="4"></label><span class="dimension-link">/</span><label id="sprite-columns-row">列数<input id="sprite-columns" type="number" min="1" max="100" value="8"></label></div>
+            <label class="switch-row"><span><strong>自动计算行列</strong><small>按接近正方形的方式排列</small></span><input id="sprite-auto-columns" type="checkbox" checked></label>
+            <label class="switch-row"><span><strong>补齐 2 的幂尺寸</strong><small>适合 WebGL 与游戏纹理</small></span><input id="sprite-power-of-two" type="checkbox"></label>
+            <label class="control-label">排序<select id="sprite-sort"><option value="importOrder">导入顺序</option><option value="name">文件名</option></select></label>
+            <label class="control-label">背景<select id="sprite-background-type"><option value="transparent">透明</option><option value="solid">纯色</option></select></label>
+            <label class="color-control is-hidden" id="sprite-background-row"><span>背景颜色</span><input id="sprite-background" type="color" value="#ffffff"><input id="sprite-background-text" type="text" value="#FFFFFF" maxlength="7" aria-label="Sprite 背景十六进制颜色"></label>
+            <label class="control-label">文件基础名<input id="sprite-filename" type="text" value="sprite" maxlength="60"></label>
+            <div class="sprite-summary" id="sprite-summary">导入图片后显示预计布局</div>
+            <button class="button button-secondary button-block" id="export-sprite-button" type="button" disabled>导出 PNG + JSON + CSS + Markdown</button>
+          </div></section>
+          <section class="setting-card" id="inspection-section"><button class="setting-title" type="button"><span><b>12</b>文件检查</span><i>⌃</i></button><div class="setting-body"><div class="field-grid"><label>体积警告（KB）<input id="inspect-max-kb" type="number" min="1" max="102400" value="2048"></label><span class="dimension-link">/</span><label>最小边（px）<input id="inspect-min-side" type="number" min="1" max="16384" value="256"></label></div><button class="button button-secondary button-block" id="run-inspection-button" type="button" disabled>扫描当前队列</button></div></section>
+          <section class="setting-card" id="preset-section"><button class="setting-title" type="button"><span><b>13</b>预设</span><i>⌃</i></button><div class="setting-body">
+            <div class="preset-mini-summary"><span>用户预设</span><strong id="user-preset-count">0 个</strong></div>
+            <div class="button-row preset-card-actions"><button class="button button-secondary" id="import-preset-button" type="button">导入 JSON</button><button class="button button-secondary" id="export-preset-button" type="button">导出当前</button></div>
+            <p class="stage-note success-note">用户预设优先保存在 IndexedDB，浏览器不支持时使用本地存储。</p>
+          </div></section>
+        </div>
+        <div class="export-summary"><div><span>输出图片</span><strong id="output-count">0 张</strong></div><div><span>已生成体积</span><strong id="output-size">待处理</strong></div><button class="button button-primary button-block" id="start-processing-button" type="button" disabled>开始处理并导出</button><a class="button button-download-ready button-block is-hidden" id="download-result-link" href="#" download>保存生成的文件</a></div>
+      </aside>
+    </main>
+
+    <footer class="statusbar"><div><span>总数量 <strong id="status-total">0</strong></span><span>待处理 <strong id="status-pending">0</strong></span><span>已完成 <strong id="status-completed">0</strong></span><span>失败 <strong id="status-failed">0</strong></span><span>警告 <strong id="status-warning">0</strong></span></div><div class="statusbar-right"><progress id="task-progress" max="100" value="0" aria-label="处理进度"></progress><span id="memory-status">本地会话</span><button class="text-button" id="pause-button" type="button" disabled>暂停</button><button class="text-button" id="cancel-button" type="button" disabled>取消</button><button class="text-button" id="view-log-button" type="button">查看日志</button></div></footer>
+  </div>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <dialog class="log-dialog" id="log-dialog"><div class="dialog-heading"><strong>任务日志</strong><button id="close-log-button" type="button" aria-label="关闭日志">×</button></div><pre id="log-content">暂无任务记录</pre></dialog>
+  <dialog class="preset-dialog" id="preset-library-dialog"><div class="dialog-heading"><div><strong>预设库</strong><small>系统预设与本地用户预设</small></div><button id="close-preset-library" type="button" aria-label="关闭预设库">×</button></div><div class="preset-library-tools"><input id="preset-search" type="search" placeholder="搜索预设" aria-label="搜索预设"><select id="preset-filter" aria-label="筛选预设"><option value="all">全部</option><option value="favorite">已收藏</option><option value="recent">最近使用</option><option value="user">用户预设</option></select></div><div class="preset-list" id="preset-list"></div></dialog>
+  <dialog class="preset-dialog preset-form-dialog" id="save-preset-dialog"><form method="dialog" id="save-preset-form"><div class="dialog-heading"><strong id="save-dialog-title">保存预设</strong><button value="cancel" type="submit" aria-label="关闭保存预设">×</button></div><div class="dialog-content"><label class="control-label">预设名称<input id="preset-name-input" type="text" maxlength="60" required autocomplete="off"></label><label class="control-label">说明（可选）<input id="preset-description-input" type="text" maxlength="160" autocomplete="off"></label><label class="switch-row is-hidden" id="overwrite-preset-row"><span><strong>覆盖当前用户预设</strong><small>保留收藏与创建时间</small></span><input id="overwrite-preset" type="checkbox"></label></div><div class="dialog-actions"><button class="button button-secondary" value="cancel" type="submit">取消</button><button class="button button-primary" id="confirm-save-preset" value="default" type="submit">保存</button></div></form></dialog>
+  <dialog class="preset-dialog preset-form-dialog" id="import-preset-dialog"><form method="dialog" id="import-preset-form"><div class="dialog-heading"><strong>导入预设 JSON</strong><button id="close-import-preset-dialog" type="button" aria-label="关闭导入预设">×</button></div><div class="dialog-content"><label class="control-label">粘贴预设 JSON<textarea id="preset-json-input" rows="12" required spellcheck="false" placeholder="支持单个预设、导出文件或预设数组"></textarea></label><label class="button button-secondary file-picker-label">从文件读取<input class="visually-hidden" id="preset-file-input" type="file" accept="application/json,.json"></label></div><div class="dialog-actions"><button class="button button-secondary" id="cancel-import-preset-dialog" type="button">取消</button><button class="button button-primary" value="default" type="submit">导入</button></div></form></dialog>
+  <dialog class="preset-dialog" id="inspection-dialog"><div class="dialog-heading"><div><strong>文件检查报告</strong><small id="inspection-summary">尚未扫描</small></div><button id="close-inspection-dialog" type="button" aria-label="关闭检查报告">×</button></div><div class="inspection-tools"><button class="button button-secondary" id="export-inspection-report" type="button">导出 Markdown 报告</button></div><div class="inspection-list" id="inspection-list"></div></dialog>
+  <dialog class="preset-dialog preset-form-dialog" id="confirm-dialog"><form method="dialog" id="confirm-dialog-form"><div class="dialog-heading"><strong id="confirm-dialog-title">确认操作</strong><button value="cancel" type="submit" aria-label="关闭确认对话框">×</button></div><div class="dialog-content"><p id="confirm-dialog-message"></p></div><div class="dialog-actions"><button class="button button-secondary" value="cancel" type="submit">取消</button><button class="button button-primary danger-button" id="confirm-dialog-confirm" value="confirm" type="submit">确认</button></div></form></dialog>
+  <script type="module" src="./js/app.js?v=22"></script>
+</body>
+</html>
