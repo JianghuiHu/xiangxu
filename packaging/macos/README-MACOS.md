@@ -1,4 +1,4 @@
-# 像序 macOS 版 1.2.5
+# 像序 macOS 版 v1.0.1
 
 > 万象归序，创作从容。
 
@@ -20,7 +20,6 @@ chmod +x start.command
 
 ## AI 抠图
 
-- PP-MattingV2 基础模型已包含在压缩包内，无需联网即可使用。
 - PP-MattingV2 与 u2netp 均已内置，可离线使用，无需另外下载。
 - 模型推理在本机完成，不上传图片。
 
