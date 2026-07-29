@@ -6,6 +6,8 @@
   <p>
     <a href="https://xiangxu.vercel.app">在线体验</a>
     ·
+    <a href="https://github.com/JianghuiHu/xiangxu/releases/tag/v1.0.1">下载 v1.0.1</a>
+    ·
     <a href="docs/model-guide.md">AI 模型指南</a>
     ·
     <a href="docs/deployment.md">部署说明</a>

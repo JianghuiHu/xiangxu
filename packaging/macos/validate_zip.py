@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 
 
 BASE = Path(__file__).resolve().parents[2]
-PACKAGE_NAME = "像序-macOS-1.2.5"
+PACKAGE_NAME = "像序-macOS-v1.0.1"
 ARCHIVE_PATH = BASE / "dist" / f"{PACKAGE_NAME}.zip"
 PREFIX = f"{PACKAGE_NAME}/"
 REQUIRED = {

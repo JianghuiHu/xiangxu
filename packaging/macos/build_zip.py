@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 BASE = Path(__file__).resolve().parents[2]
-PACKAGE_NAME = "像序-macOS-1.2.5"
+PACKAGE_NAME = "像序-macOS-v1.0.1"
 OUTPUT = BASE / "dist" / f"{PACKAGE_NAME}.zip"
 
 
