@@ -1,4 +1,4 @@
-import { createInitialState } from './defaults.js?v=7';
+import { createInitialState } from './defaults.js?v=8';
 
 export function createStore() {
   let state = createInitialState();

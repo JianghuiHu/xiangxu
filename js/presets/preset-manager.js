@@ -53,7 +53,7 @@ export function normalizePreset(input, { keepId = false } = {}) {
   if (!inputSettings || typeof inputSettings !== 'object') throw new Error(`“${name}”缺少 globalSettings`);
   const now = Date.now();
   const settings = mergeKnown(createDefaultSettings(), inputSettings);
-  if (!['ppmattingv2', 'u2netp'].includes(settings.ai.modelId)) settings.ai.modelId = 'ppmattingv2';
+  if (!['ppmattingv2', 'u2netp'].includes(settings.ai.modelId) && !/^external:[a-z0-9-]+$/.test(settings.ai.modelId)) settings.ai.modelId = 'ppmattingv2';
   if (settings.color.mode === 'whiteToTransparent') settings.color.mode = 'colorToTransparent';
   return {
     id: keepId && /^user:/.test(input.id || '') ? input.id : `user:${crypto.randomUUID()}`,

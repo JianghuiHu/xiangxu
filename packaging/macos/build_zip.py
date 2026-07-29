@@ -15,6 +15,7 @@ def collect_sources() -> list[tuple[Path, str]]:
         (BASE / "index.html", "index.html"),
         (BASE / "README.md", "README.md"),
         (BASE / "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_NOTICES.md"),
+        (BASE / "server.py", "server.py"),
         (BASE / "packaging" / "macos" / "start.command", "start.command"),
         (BASE / "packaging" / "macos" / "README-MACOS.md", "README-MACOS.md"),
     ]

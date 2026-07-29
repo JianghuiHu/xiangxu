@@ -1,5 +1,5 @@
-import { getOutputSize, renderCanvasPipeline } from '../render/canvas-pipeline.js?v=5';
-import { removeBackgroundWithAi } from '../ai/background-remover.js?v=5';
+import { getOutputSize, renderCanvasPipeline } from '../render/canvas-pipeline.js?v=7';
+import { removeBackgroundWithAi } from '../ai/background-remover.js?v=8';
 
 const MIME_TYPES = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
 

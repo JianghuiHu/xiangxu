@@ -29,7 +29,8 @@ export const AI_MODEL_CATALOG = Object.freeze({
     mean: [0.485, 0.456, 0.406],
     std: [0.229, 0.224, 0.225],
     outputMode: 'normalize',
-    url: 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx'
+    builtinUrl: new URL('../../assets/models/u2netp.onnx', import.meta.url).href,
+    sourceUrl: 'https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx'
   }
 });
 
@@ -79,13 +80,13 @@ export async function listInstalledModels() {
   const modelsById = new Map();
   const bundledCatalogs = Object.values(AI_MODEL_CATALOG).filter(({ builtinUrl }) => builtinUrl);
   const bundledAvailability = await Promise.all(bundledCatalogs.map((catalog) => isBundledModelAvailable(catalog)));
-  bundledCatalogs.forEach((catalog, index) => {
-    if (bundledAvailability[index]) modelsById.set(catalog.id, createBundledMetadata(catalog));
-  });
   try {
     const models = await requestStore('readonly', (store) => store.getAll());
     models.forEach(({ buffer, ...metadata }) => modelsById.set(metadata.id, metadata));
   } catch { /* IndexedDB 不可用时仍可使用实际存在的本地模型。 */ }
+  bundledCatalogs.forEach((catalog, index) => {
+    if (bundledAvailability[index]) modelsById.set(catalog.id, createBundledMetadata(catalog));
+  });
   return [...modelsById.values()];
 }
 
@@ -217,9 +218,16 @@ async function isBundledModelAvailable(catalog) {
   if (catalog.builtinUrl.startsWith('file:')) return true;
   try {
     const response = await fetch(catalog.builtinUrl, { method: 'HEAD', cache: 'no-store' });
-    if (!response.ok) return false;
+    if (response.ok) {
+      const size = Number(response.headers.get('content-length')) || 0;
+      return !size || size === catalog.size;
+    }
+  } catch { /* 某些本地静态服务器不支持 HEAD，继续使用轻量 GET 探测。 */ }
+  try {
+    const response = await fetch(catalog.builtinUrl, { method: 'GET', cache: 'no-store' });
     const size = Number(response.headers.get('content-length')) || 0;
-    return !size || size === catalog.size;
+    await response.body?.cancel();
+    return response.ok && (!size || size === catalog.size);
   } catch {
     return false;
   }

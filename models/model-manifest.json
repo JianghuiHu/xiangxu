@@ -3,22 +3,22 @@
     {
       "id": "ppmattingv2",
       "name": "PP-MattingV2 人像版",
-      "optional": true,
+      "optional": false,
       "version": "PaddleSeg-2.7-stdc1-human-512",
       "size": 35940680,
       "downloadUrl": "",
       "sha256": "8286b1a110360e868d54ad00319aaa12d5e7bba79ee42e057d67fa5baa8962ff",
-      "distributedWithSource": false
+      "distributedWithSource": true
     },
     {
       "id": "u2netp",
       "name": "u2netp 通用版",
-      "optional": true,
+      "optional": false,
       "version": "rembg-v0.0.0",
       "size": 4574861,
-      "downloadUrl": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
+      "downloadUrl": "",
       "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
-      "distributedWithSource": false
+      "distributedWithSource": true
     }
   ]
 }

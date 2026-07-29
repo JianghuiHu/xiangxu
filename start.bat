@@ -16,6 +16,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0server.ps1" -Port 5173
 goto :end
 :start_server
 start "" /b powershell -NoProfile -WindowStyle Hidden -Command "Start-Sleep -Seconds 1; Start-Process 'http://localhost:5173'"
-%PYTHON_CMD% -m http.server 5173
+%PYTHON_CMD% "%~dp0server.py" --port 5173
 :end
 endlocal

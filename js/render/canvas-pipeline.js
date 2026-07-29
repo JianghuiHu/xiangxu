@@ -3,7 +3,7 @@ import { renderBackground } from './background-engine.js';
 import { getCropSourceRect } from './crop-engine.js?v=2';
 import { applyMaskPath } from './mask-engine.js';
 import { detectContentBounds } from '../processing/trim-engine.js';
-import { createColorProcessedSource } from './color-engine.js?v=2';
+import { createColorProcessedSource } from './color-engine.js?v=4';
 import { renderTextWatermark } from './watermark-engine.js';
 
 const MAX_PREVIEW_DIMENSION = 2048;

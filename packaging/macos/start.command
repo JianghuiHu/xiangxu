@@ -16,4 +16,4 @@ echo "正在启动本地服务：${URL}"
 echo "关闭此终端窗口即可停止像序。"
 
 (sleep 1 && open "${URL}") &
-exec python3 -m http.server "${PORT}" --bind 127.0.0.1
+exec python3 server.py --port "${PORT}"
