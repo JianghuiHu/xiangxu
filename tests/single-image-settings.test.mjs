@@ -20,6 +20,7 @@ const image = (id, name) => ({
 
 actions.addImages([image('A', 'A.png'), image('B', 'B.png'), image('C', 'C.png')]);
 assert.deepEqual(store.getState().images.map(({ settingsMode }) => settingsMode), ['global', 'global', 'global']);
+assert.equal(store.getState().activeImageId, 'A', '首次批量导入必须默认预览第一张');
 
 actions.setActive('B');
 actions.commitAiMaskStroke('add', 24, [{ x: 0.5, y: 0.5 }, { x: 0.6, y: 0.5 }]);
@@ -103,5 +104,21 @@ actions.updateSetting('canvas.height', 600);
 assert.deepEqual([getEffectiveSettings(store.getState(), 'A').canvas.width, getEffectiveSettings(store.getState(), 'A').canvas.height], [512, 512]);
 assert.deepEqual([getEffectiveSettings(store.getState(), 'B').canvas.width, getEffectiveSettings(store.getState(), 'B').canvas.height], [800, 600]);
 assert.deepEqual([getEffectiveSettings(store.getState(), 'C').canvas.width, getEffectiveSettings(store.getState(), 'C').canvas.height], [512, 512]);
+
+actions.updateSetting('color.enabled', true);
+actions.updateSetting('color.brightness', 42);
+actions.updateSetting('color.curves.r.highlights', -60);
+actions.resetColorSettings();
+assert.equal(getEffectiveSettings(store.getState(), 'B').color.enabled, true, '还原颜色参数不应关闭已经启用的颜色模块');
+assert.equal(getEffectiveSettings(store.getState(), 'B').color.brightness, 100);
+assert.equal(getEffectiveSettings(store.getState(), 'B').color.curves.r.highlights, 0);
+
+const reimportStore = createStore();
+const reimportActions = createActions(reimportStore);
+reimportActions.addImages([image('first-a', 'first-a.png'), image('first-b', 'first-b.png')]);
+reimportActions.setActive('first-b');
+reimportActions.addImages([image('second-a', 'second-a.png'), image('second-b', 'second-b.png')]);
+assert.equal(reimportStore.getState().activeImageId, 'second-a', '每次新增一组图片都必须预览本次导入的第一张');
+assert.equal(reimportStore.getState().selectedIds.size, 0, '默认预览不得误勾选批量操作复选框');
 
 console.log('single-image settings state/preset tests passed');

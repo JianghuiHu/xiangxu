@@ -1,4 +1,4 @@
-import { createDefaultSettings } from './defaults.js?v=7';
+import { createDefaultSettings } from './defaults.js?v=8';
 import { getEffectiveSettings, getImageById } from './selectors.js';
 
 const isTaskLevelSetting = (path) => path === 'output.mode' || path.startsWith('sprite.') || path.startsWith('inspection.');
@@ -10,7 +10,7 @@ export function createActions(store) {
       store.update((state) => {
         state.images.push(...images);
         state.taskDirty = true;
-        if (!state.activeImageId) state.activeImageId = images[0].id;
+        state.activeImageId = images[0].id;
         state.processing.pending = state.images.length;
         if (!state.processing.running) {
           state.processing.completed = 0;
@@ -193,6 +193,20 @@ export function createActions(store) {
         state.taskDirty = true;
         state.previewMode = 'processed';
       }, 'ai-edit:reset');
+    },
+    resetColorSettings() {
+      store.update((state) => {
+        const image = getImageById(state, state.activeImageId);
+        const settings = getEffectiveSettings(state);
+        const wasEnabled = settings.color.enabled;
+        settings.color = createDefaultSettings().color;
+        settings.color.enabled = wasEnabled;
+        if (image?.settingsMode === 'custom') image.renderDirty = true;
+        else state.images.filter((item) => item.settingsMode !== 'custom').forEach((item) => { item.renderDirty = true; });
+        state.taskDirty = true;
+        state.previewMode = 'processed';
+        if (image?.settingsMode !== 'custom') state.preset.modified = Boolean(state.preset.id);
+      }, 'settings:color-reset');
     },
     updateProcessing(patch, action = 'processing:update') {
       store.update((state) => {

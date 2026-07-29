@@ -13,7 +13,9 @@ REQUIRED = {
     "index.html",
     "start.command",
     "README-MACOS.md",
+    "server.py",
     "assets/models/ppmattingv2-stdc1-human-512.onnx",
+    "assets/models/u2netp.onnx",
     "js/ai/model-manager.js",
 }
 FORBIDDEN_PARTS = {"backup_legacy", "tests", "packaging", "__pycache__"}
@@ -38,7 +40,6 @@ with zipfile.ZipFile(ARCHIVE_PATH) as archive:
         assert not relative_name.lower().endswith((".exe", ".bat", ".ps1")), (
             f"Windows-only file included: {relative_name}"
         )
-        assert not relative_name.lower().endswith("u2netp.onnx"), "u2netp weights must remain optional"
 
     start_info = archive.getinfo(f"{PREFIX}start.command")
     start_mode = (start_info.external_attr >> 16) & 0o777
@@ -52,6 +53,10 @@ with zipfile.ZipFile(ARCHIVE_PATH) as archive:
     archive_model = archive.read(model_name)
     source_model = (BASE / "assets" / "models" / "ppmattingv2-stdc1-human-512.onnx").read_bytes()
     assert archive_model == source_model, "Bundled PP-MattingV2 model differs from source"
+    u2netp_name = f"{PREFIX}assets/models/u2netp.onnx"
+    archive_u2netp = archive.read(u2netp_name)
+    source_u2netp = (BASE / "assets" / "models" / "u2netp.onnx").read_bytes()
+    assert archive_u2netp == source_u2netp, "Bundled u2netp model differs from source"
 
 print(f"archive={ARCHIVE_PATH}")
 print(f"files={len(names)}")

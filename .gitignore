@@ -32,6 +32,8 @@ screenshots-local/
 
 # Optional local AI model weights
 assets/models/*.onnx
+!assets/models/ppmattingv2-stdc1-human-512.onnx
+!assets/models/u2netp.onnx
 models/*.onnx
 models/*.bin
 models/*.safetensors

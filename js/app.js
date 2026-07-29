@@ -1,15 +1,16 @@
-import { createStore } from './state/store.js?v=8';
-import { createActions } from './state/actions.js?v=9';
+import { createStore } from './state/store.js?v=9';
+import { createActions } from './state/actions.js?v=12';
 import { importFiles, filesFromDataTransfer } from './import/file-importer.js?v=3';
 import { filesFromClipboard } from './import/clipboard-importer.js';
 import { renderImageList, getVisibleImages } from './ui/image-list.js?v=3';
-import { createPreviewRenderer } from './ui/preview-panel.js?v=6';
+import { createPreviewRenderer } from './ui/preview-panel.js?v=12';
 import { createToast } from './ui/toast.js';
 import { bindSettingsPanel } from './ui/settings-panel.js';
 import { runBatchExport } from './export/batch-exporter.js?v=7';
-import { downloadBlob, getRuntimeHost } from './export/exporter.js?v=11';
+import { downloadBlob, getRuntimeHost } from './export/exporter.js?v=13';
 import { formatFilename } from './export/filename-template.js';
-import { getOutputSize } from './render/canvas-pipeline.js?v=5';
+import { getOutputSize } from './render/canvas-pipeline.js?v=7';
+import { createCurveSvgPath } from './render/color-engine.js?v=4';
 import { formatBytes } from './utils/format.js';
 import { SYSTEM_PRESETS } from './presets/system-presets.js';
 import { listUserPresets, saveUserPreset, deleteUserPreset, updateUserPreset, serializePreset, parsePresetJson } from './presets/preset-manager.js?v=4';
@@ -17,8 +18,9 @@ import { inspectImages, inspectionToMarkdown } from './inspection/image-inspecto
 import { createSpritePackage, getSpriteLayout } from './export/sprite-exporter.js?v=4';
 import { preloadWatermarkImage } from './render/watermark-engine.js';
 import { loadExportDirectoryHandle, saveExportDirectoryHandle, ensureDirectoryPermission } from './export/directory-handle-store.js';
-import { AI_MODEL_CATALOG, listInstalledModels, downloadAndInstallModel, deleteModel } from './ai/model-manager.js?v=5';
-import { clearAiMaskCache } from './ai/background-remover.js?v=5';
+import { AI_MODEL_CATALOG, listInstalledModels, downloadAndInstallModel, deleteModel } from './ai/model-manager.js?v=6';
+import { loadExternalModelCatalog, renderExternalModelCards } from './ai/external-models.js?v=2';
+import { clearAiMaskCache } from './ai/background-remover.js?v=8';
 import { mapCanvasPointToSource, toUnscaledLocalPoint } from './ai/brush-geometry.js?v=1';
 import { getEffectiveSettings, getImageById, getCustomImageCount, getSettingsScope } from './state/selectors.js';
 
@@ -29,7 +31,7 @@ const toast = createToast($('#toast-region'));
 const emptyListTemplate = $('#empty-list').cloneNode(true);
 const preview = createPreviewRenderer({
   canvas: $('#preview-canvas'), wrap: $('#canvas-wrap'), guides: $('#crop-guides'), figure: $('#preview-figure'), empty: $('#preview-empty'), info: $('#preview-info'),
-  onError: (message) => toast(message, 'error'),
+  onError: (message) => toast(message, 'error', 7000),
   onAiProgress: (value, stage) => updateAiProgress(value, stage, true),
   onRendered: clearAiBrushOverlay
 });
@@ -48,6 +50,10 @@ let pendingDownloadUrl = null;
 let aiBrushMode = 'off';
 let aiBrushPainting = false;
 let aiBrushDraft = null;
+let externalModelCatalog = null;
+let pendingExternalLink = null;
+let activeCurveChannel = 'rgb';
+let colorPickerState = null;
 
 document.documentElement.dataset.runtimeHost = getRuntimeHost();
 window.addEventListener('xiangxu:download-ready', (event) => {
@@ -72,17 +78,24 @@ function clearPendingDownload() {
 function updateAiProgress(value, stage = '处理中', showPreviewOverlay = false) {
   window.clearTimeout(aiProgressHideTimer);
   const progress = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  const failed = String(stage).includes('失败');
   $('#ai-progress-panel').classList.remove('is-hidden');
+  $('#ai-progress-panel').classList.toggle('is-error', failed);
   $('#ai-progress').value = progress;
   $('#ai-progress-label').textContent = stage;
   $('#ai-progress-percent').textContent = `${progress}%`;
-  $('#ai-progress-hint').textContent = progress < 100 ? '请稍候，模型和图片始终只在本机处理' : '已完成；后续调整会优先复用 Mask 缓存';
+  $('#ai-progress-hint').textContent = failed
+    ? '模型未应用到预览，请根据上方错误提示处理后重试'
+    : progress < 100 ? '请稍候，模型和图片始终只在本机处理' : '已完成；后续调整会优先复用 Mask 缓存';
   if (showPreviewOverlay) {
     $('#ai-preview-loading').classList.remove('is-hidden');
     $('#ai-preview-loading-label').textContent = stage;
     $('#ai-preview-loading-progress').value = progress;
   }
-  if (progress >= 100) {
+  if (failed) {
+    $('#ai-preview-loading').classList.add('is-hidden');
+    aiProgressHideTimer = window.setTimeout(() => $('#ai-progress-panel').classList.add('is-hidden'), 6500);
+  } else if (progress >= 100) {
     aiProgressHideTimer = window.setTimeout(() => {
       $('#ai-progress-panel').classList.add('is-hidden');
       $('#ai-preview-loading').classList.add('is-hidden');
@@ -113,6 +126,99 @@ function confirmAction(message, { title = '确认操作', confirmText = '确认'
     const onClose = () => { dialog.removeEventListener('close', onClose); resolve(dialog.returnValue === 'confirm'); };
     dialog.addEventListener('close', onClose); dialog.showModal();
   });
+}
+
+async function openExternalModelLibrary(focusModelId = '') {
+  const dialog = $('#external-model-dialog');
+  dialog.showModal();
+  const container = $('#external-model-list');
+  if (externalModelCatalog) {
+    container.innerHTML = renderExternalModelCards(externalModelCatalog.models);
+    focusExternalModelCard(focusModelId);
+    return;
+  }
+  container.innerHTML = '<div class="external-model-loading">正在读取模型目录…</div>';
+  try {
+    await ensureExternalModelCatalog();
+    container.innerHTML = renderExternalModelCards(externalModelCatalog.models);
+    focusExternalModelCard(focusModelId);
+  } catch (error) {
+    container.innerHTML = `<div class="preset-empty">模型目录读取失败：${escapeHtml(error.message)}<br>这不会影响像序内置抠图和基础图片处理。</div>`;
+  }
+}
+
+function focusExternalModelCard(modelId) {
+  if (!modelId) return;
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`[data-external-model-id="${CSS.escape(modelId)}"]`);
+    card?.classList.add('is-selected');
+    card?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+
+function syncExternalModelOptions() {
+  const group = $('#external-model-options');
+  if (!group || !externalModelCatalog) return;
+  group.replaceChildren(...externalModelCatalog.models
+    .filter((model) => model.id !== 'ppmattingv2-external')
+    .map((model) => {
+      const option = document.createElement('option');
+      option.value = `external:${model.id}`;
+      option.textContent = `${model.name} · ${model.compatibility.label}`;
+      return option;
+    }));
+}
+
+async function ensureExternalModelCatalog() {
+  if (!externalModelCatalog) {
+    externalModelCatalog = await loadExternalModelCatalog();
+    syncExternalModelOptions();
+  }
+  return externalModelCatalog;
+}
+
+function getSelectedExternalModel(modelId) {
+  if (!modelId?.startsWith('external:') || !externalModelCatalog) return null;
+  return externalModelCatalog.models.find((model) => model.id === modelId.slice('external:'.length)) || null;
+}
+
+function requestExternalUrl({ url: rawUrl, label = '外部链接', source = '' }) {
+  const url = new URL(rawUrl, window.location.href);
+  if (url.protocol !== 'https:') {
+    toast('已阻止非 HTTPS 外部链接', 'warning');
+    return;
+  }
+  pendingExternalLink = {
+    url: url.href,
+    label,
+    source: source || url.hostname
+  };
+  $('#external-link-label').textContent = pendingExternalLink.label;
+  $('#external-link-host').textContent = url.hostname;
+  $('#external-link-source').textContent = pendingExternalLink.source;
+  $('#external-link-dialog').showModal();
+}
+
+function requestExternalLink(link) {
+  requestExternalUrl({
+    url: link.dataset.externalUrl,
+    label: link.dataset.externalLabel,
+    source: link.dataset.externalSource
+  });
+}
+
+function cancelExternalLink() {
+  pendingExternalLink = null;
+  $('#external-link-dialog').close('cancel');
+}
+
+function openPendingExternalLink() {
+  if (!pendingExternalLink) return;
+  const target = pendingExternalLink;
+  pendingExternalLink = null;
+  window.open(target.url, '_blank', 'noopener,noreferrer');
+  $('#external-link-dialog').close('opened');
+  toast(`已在新窗口打开：${target.label}`);
 }
 
 function renderPresetLibrary() {
@@ -240,6 +346,7 @@ function render(state, action) {
   document.querySelectorAll('[data-preview-mode]').forEach((button) => button.classList.toggle('active', button.dataset.previewMode === state.previewMode));
   syncSettingsControls(panelSettings);
   syncAiBrushControls(state, activeImage, effectiveSettings);
+  syncColorPickerUi();
   const stage = $('#preview-stage');
   stage.classList.toggle('checkerboard', state.previewBackground === 'checker');
   stage.style.backgroundColor = state.previewBackground === 'white' ? '#fff' : state.previewBackground === 'black' ? '#111827' : '';
@@ -249,6 +356,39 @@ function render(state, action) {
   }
   else if (action === 'preview:background') preview.render(state);
   $('#fit-button').textContent = state.zoom === 1 ? '适应窗口' : `${Math.round(state.zoom * 100)}%`;
+}
+
+function signedValue(value) {
+  const numeric = Number(value) || 0;
+  return numeric > 0 ? `+${numeric}` : String(numeric);
+}
+
+function syncCurveControls(colorSettings) {
+  const curve = colorSettings.curves?.[activeCurveChannel] || { shadows: 0, midtones: 0, highlights: 0 };
+  document.querySelectorAll('[data-curve-channel]').forEach((button) => {
+    const selected = button.dataset.curveChannel === activeCurveChannel;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-selected', String(selected));
+  });
+  ['shadows', 'midtones', 'highlights'].forEach((tone) => {
+    setValue(`#curve-${tone}`, curve[tone] || 0);
+    $(`#curve-${tone}-output`).textContent = signedValue(curve[tone]);
+  });
+  const preview = $('.color-curve-preview');
+  preview.dataset.channel = activeCurveChannel;
+  $('#color-curve-line').setAttribute('points', createCurveSvgPath(curve));
+}
+
+function syncColorPickerUi() {
+  const activePath = colorPickerState?.path || '';
+  document.querySelectorAll('[data-color-picker-path]').forEach((button) => {
+    const active = button.dataset.colorPickerPath === activePath;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  $('#color-picker-hint').classList.toggle('is-hidden', !colorPickerState);
+  if (colorPickerState) $('#color-picker-hint').textContent = `正在吸取${colorPickerState.label}：点击中间原图，按 Esc 取消。`;
+  $('#canvas-wrap').classList.toggle('is-color-picking', Boolean(colorPickerState));
 }
 
 function syncSettingsControls(settings) {
@@ -310,17 +450,34 @@ function syncSettingsControls(settings) {
   setValue('#subject-width', settings.subject.widthPercent);
   setValue('#subject-height', settings.subject.heightPercent);
   setChecked('#color-enabled', settings.color.enabled);
-  setValue('#color-mode', settings.color.mode);
+  document.querySelectorAll('[data-color-mode]').forEach((button) => {
+    const selected = button.dataset.colorMode === settings.color.mode;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-selected', String(selected));
+  });
   setValue('#color-source', settings.color.source);
   setValue('#color-source-text', settings.color.source.toUpperCase());
   setValue('#color-target', settings.color.target);
   setValue('#color-target-text', settings.color.target.toUpperCase());
   setValue('#color-tolerance', settings.color.tolerance);
+  setValue('#color-exposure', settings.color.exposure);
   setValue('#color-brightness', settings.color.brightness);
   setValue('#color-contrast', settings.color.contrast);
   setValue('#color-saturation', settings.color.saturation);
+  setValue('#color-temperature', settings.color.temperature);
+  setValue('#color-tint', settings.color.tint);
+  setValue('#color-hue', settings.color.hue);
   setValue('#color-opacity', settings.color.opacity);
   $('#color-tolerance-output').textContent = String(settings.color.tolerance);
+  $('#color-exposure-output').textContent = `${Number(settings.color.exposure).toFixed(1)} EV`;
+  $('#color-brightness-output').textContent = `${settings.color.brightness}%`;
+  $('#color-contrast-output').textContent = `${settings.color.contrast}%`;
+  $('#color-saturation-output').textContent = `${settings.color.saturation}%`;
+  $('#color-temperature-output').textContent = signedValue(settings.color.temperature);
+  $('#color-tint-output').textContent = signedValue(settings.color.tint);
+  $('#color-hue-output').textContent = `${signedValue(settings.color.hue)}°`;
+  $('#color-opacity-output').textContent = `${settings.color.opacity}%`;
+  syncCurveControls(settings.color);
   setChecked('#watermark-enabled', settings.watermark.enabled);
   setValue('#watermark-type', settings.watermark.type);
   setValue('#watermark-text', settings.watermark.text);
@@ -357,6 +514,15 @@ function syncSettingsControls(settings) {
   $('#mask-radius-row').classList.toggle('is-hidden', settings.mask.type !== 'rounded');
   $('#background-color-row').classList.toggle('is-hidden', settings.canvas.background.type !== 'solid');
   const colorMatchMode = ['replace', 'colorToTransparent'].includes(settings.color.mode);
+  const colorModeDescriptions = {
+    none: '调整整张图片的明暗、色彩和 RGB 曲线。',
+    replace: '选择来源色和目标色，仅替换容差范围内的像素。',
+    colorToTransparent: '选择需要移除的颜色，仅改变匹配像素的透明度。',
+    grayscale: '直接生成灰度图片，无需额外参数。',
+    invert: '直接反相 RGB 颜色，无需额外参数。'
+  };
+  $('#color-basic-adjustments').classList.toggle('is-hidden', settings.color.mode !== 'none');
+  $('#color-mode-description').textContent = colorModeDescriptions[settings.color.mode] || colorModeDescriptions.none;
   $('#color-source-row').classList.toggle('is-hidden', !colorMatchMode);
   $('#color-target-row').classList.toggle('is-hidden', settings.color.mode !== 'replace');
   $('#color-tolerance-row').classList.toggle('is-hidden', !colorMatchMode);
@@ -387,7 +553,8 @@ function syncSettingsControls(settings) {
   ['#canvas-width', '#canvas-height', '#background-type'].forEach((selector) => { $(selector).disabled = !settings.canvas.enabled; });
   ['#trim-mode', '#trim-color', '#trim-color-text', '#trim-tolerance', '#trim-padding'].forEach((selector) => { $(selector).disabled = !settings.trim.enabled; });
   ['#subject-width', '#subject-height'].forEach((selector) => { $(selector).disabled = !settings.subject.enabled; });
-  ['#color-mode', '#color-source', '#color-source-text', '#color-target', '#color-target-text', '#color-tolerance', '#color-brightness', '#color-contrast', '#color-saturation', '#color-opacity'].forEach((selector) => { $(selector).disabled = !settings.color.enabled; });
+  ['#color-source', '#color-source-text', '#color-target', '#color-target-text', '#color-tolerance', '#color-exposure', '#color-brightness', '#color-contrast', '#color-saturation', '#color-temperature', '#color-tint', '#color-hue', '#color-opacity', '#curve-shadows', '#curve-midtones', '#curve-highlights', '#reset-color-settings'].forEach((selector) => { $(selector).disabled = !settings.color.enabled; });
+  document.querySelectorAll('[data-color-mode],[data-curve-channel],[data-color-picker-path]').forEach((button) => { button.disabled = !settings.color.enabled; });
   ['#watermark-type', '#watermark-text', '#watermark-size', '#watermark-opacity', '#watermark-alignment', '#watermark-tiled', '#watermark-image-input', '#watermark-image-scale'].forEach((selector) => { $(selector).disabled = !settings.watermark.enabled; });
   ['#target-size-kb', '#target-min-quality', '#target-allow-resize'].forEach((selector) => { $(selector).disabled = !settings.compression.targetEnabled; });
   const activeImage = store.getState().images.find((image) => image.id === store.getState().activeImageId) || { name: 'image.png', width: 1024, height: 1024 };
@@ -463,10 +630,31 @@ function updateExportLocationUi(mode) {
 
 function updateAiModelUi(state) {
   const settings = getEffectiveSettings(state);
+  const externalModel = getSelectedExternalModel(settings.ai.modelId);
   const metadata = installedAiModels.get(settings.ai.modelId);
   const ready = Boolean(metadata);
   const catalog = AI_MODEL_CATALOG[settings.ai.modelId];
   const status = $('#ai-model-status');
+  if (settings.ai.modelId?.startsWith('external:')) {
+    status.classList.remove('is-ready');
+    status.querySelector('strong').textContent = externalModel
+      ? `${externalModel.name} · ${externalModel.compatibility.label}`
+      : '正在读取外部模型资料';
+    status.querySelector('small').textContent = externalModel
+      ? `${externalModel.runtime}；不会下载到像序缓存`
+      : '外部模型不能直接用于当前处理流水线';
+    $('#ai-enabled').disabled = true;
+    $('#ai-delete-model').disabled = true;
+    $('#ai-download-model').disabled = aiOperationRunning || !externalModel?.links?.length;
+    $('#ai-download-model').textContent = '查看下载与适配方案';
+    $('#ai-cancel-model-download').classList.add('is-hidden');
+    $('#ai-model-select').disabled = aiOperationRunning;
+    $('#pipeline-ai-status').textContent = '外部模型需转换适配';
+    $('#pipeline-ai-status').closest('li').classList.remove('is-on');
+    $('#pipeline-ai-status').closest('li').classList.add('is-off');
+    if (settings.ai.enabled) queueMicrotask(() => actions.updateSetting('ai.enabled', false));
+    return;
+  }
   status.classList.toggle('is-ready', ready);
   status.querySelector('strong').textContent = ready ? `${metadata.name} · ${metadata.builtin ? '内置离线' : metadata.version}` : `${catalog?.name || settings.ai.modelId} 未安装`;
   status.querySelector('small').textContent = ready
@@ -486,6 +674,8 @@ function updateAiModelUi(state) {
 
 async function refreshAiModels() {
   installedAiModels = new Map((await listInstalledModels()).map((model) => [model.id, model]));
+  try { await ensureExternalModelCatalog(); }
+  catch { /* 外部资料目录不可用时不影响两个内置模型。 */ }
   updateAiModelUi(store.getState());
 }
 
@@ -544,6 +734,59 @@ function bindHexColorText(textSelector, pickerSelector, path, label) {
   });
 }
 
+function beginColorPicking(path, label) {
+  const state = store.getState();
+  if (!getImageById(state, state.activeImageId)) {
+    toast('请先导入并选择一张图片', 'warning');
+    return;
+  }
+  if (colorPickerState?.path === path) {
+    cancelColorPicking();
+    return;
+  }
+  setAiBrushMode('off');
+  colorPickerState = {
+    path,
+    label,
+    previousPreviewMode: colorPickerState?.previousPreviewMode || state.previewMode
+  };
+  syncColorPickerUi();
+  if (state.previewMode !== 'original') actions.setPreviewMode('original');
+}
+
+function cancelColorPicking(restorePreview = true) {
+  if (!colorPickerState) return;
+  const previousPreviewMode = colorPickerState.previousPreviewMode;
+  colorPickerState = null;
+  syncColorPickerUi();
+  if (restorePreview && store.getState().previewMode !== previousPreviewMode) actions.setPreviewMode(previousPreviewMode);
+}
+
+function pickColorFromPreview(event) {
+  if (!colorPickerState) return false;
+  const canvas = $('#preview-canvas');
+  const rect = canvas.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX >= rect.right || event.clientY < rect.top || event.clientY >= rect.bottom) return true;
+  const x = Math.min(canvas.width - 1, Math.max(0, Math.floor(((event.clientX - rect.left) / Math.max(1, rect.width)) * canvas.width)));
+  const y = Math.min(canvas.height - 1, Math.max(0, Math.floor(((event.clientY - rect.top) / Math.max(1, rect.height)) * canvas.height)));
+  try {
+    const [red, green, blue, alpha] = canvas.getContext('2d', { willReadFrequently: true }).getImageData(x, y, 1, 1).data;
+    if (!alpha) {
+      toast('该位置是完全透明像素，请选择有颜色的区域', 'warning');
+      return true;
+    }
+    const picker = colorPickerState;
+    const hex = `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+    colorPickerState = null;
+    syncColorPickerUi();
+    actions.updateSetting(picker.path, hex);
+    toast(`已吸取${picker.label}：${hex.toUpperCase()}`);
+  } catch (error) {
+    toast(`吸色失败：${error.message}`, 'error');
+  }
+  return true;
+}
+
 store.subscribe(render);
 bindSettingsPanel($('#settings-panel'));
 document.querySelectorAll('.switch-row input[type="checkbox"]').forEach((input) => input.setAttribute('role', 'switch'));
@@ -595,8 +838,33 @@ $('#ai-reset-adjustments').addEventListener('click', () => {
   actions.resetAiMaskAdjustments();
   toast('已还原抠图参数并清除当前图片的手工笔触');
 });
+$('#open-external-models').addEventListener('click', () => openExternalModelLibrary());
+$('#close-external-models').addEventListener('click', () => $('#external-model-dialog').close());
+$('#close-external-models-footer').addEventListener('click', () => $('#external-model-dialog').close());
+$('#external-model-list').addEventListener('click', (event) => {
+  const clickTarget = event.target instanceof Element ? event.target : event.target?.parentElement;
+  const link = clickTarget?.closest('[data-external-url]');
+  if (!link) return;
+  event.preventDefault();
+  requestExternalLink(link);
+});
+$('#cancel-external-link').addEventListener('click', cancelExternalLink);
+$('#cancel-external-link-icon').addEventListener('click', cancelExternalLink);
+$('#confirm-external-link').addEventListener('click', openPendingExternalLink);
+$('#external-link-dialog').addEventListener('close', () => { pendingExternalLink = null; });
 $('#ai-download-model').addEventListener('click', async () => {
   const id = $('#ai-model-select').value;
+  if (id.startsWith('external:')) {
+    try {
+      await ensureExternalModelCatalog();
+      const model = getSelectedExternalModel(id);
+      if (!model) throw new Error('找不到所选外部模型');
+      await openExternalModelLibrary(model.id);
+    } catch (error) {
+      toast(`无法打开模型资料：${error.message}`, 'error', 6000);
+    }
+    return;
+  }
   const catalog = AI_MODEL_CATALOG[id];
   aiDownloadController = new AbortController();
   try {
@@ -680,16 +948,39 @@ $('#subject-enabled').addEventListener('change', (event) => actions.updateSettin
 bindNumber('#subject-width', 'subject.widthPercent', 5, 100);
 bindNumber('#subject-height', 'subject.heightPercent', 5, 100);
 $('#color-enabled').addEventListener('change', (event) => actions.updateSetting('color.enabled', event.target.checked));
-$('#color-mode').addEventListener('change', (event) => actions.updateSetting('color.mode', event.target.value));
+document.querySelectorAll('[data-color-mode]').forEach((button) => button.addEventListener('click', () => {
+  cancelColorPicking(false);
+  actions.updateSetting('color.mode', button.dataset.colorMode);
+}));
+document.querySelectorAll('[data-color-picker-path]').forEach((button) => button.addEventListener('click', () => {
+  const label = button.dataset.colorPickerPath === 'color.target' ? '目标颜色' : '来源颜色';
+  beginColorPicking(button.dataset.colorPickerPath, label);
+}));
 $('#color-source').addEventListener('input', (event) => actions.updateSetting('color.source', event.target.value));
 $('#color-target').addEventListener('input', (event) => actions.updateSetting('color.target', event.target.value));
 bindHexColorText('#color-source-text', '#color-source', 'color.source', '来源颜色');
 bindHexColorText('#color-target-text', '#color-target', 'color.target', '目标颜色');
 $('#color-tolerance').addEventListener('input', (event) => actions.updateSetting('color.tolerance', Number(event.target.value)));
-bindNumber('#color-brightness', 'color.brightness', 0, 200);
-bindNumber('#color-contrast', 'color.contrast', 0, 200);
-bindNumber('#color-saturation', 'color.saturation', 0, 200);
-bindNumber('#color-opacity', 'color.opacity', 0, 100);
+$('#color-exposure').addEventListener('input', (event) => actions.updateSetting('color.exposure', Number(event.target.value)));
+$('#color-brightness').addEventListener('input', (event) => actions.updateSetting('color.brightness', Number(event.target.value)));
+$('#color-contrast').addEventListener('input', (event) => actions.updateSetting('color.contrast', Number(event.target.value)));
+$('#color-saturation').addEventListener('input', (event) => actions.updateSetting('color.saturation', Number(event.target.value)));
+$('#color-temperature').addEventListener('input', (event) => actions.updateSetting('color.temperature', Number(event.target.value)));
+$('#color-tint').addEventListener('input', (event) => actions.updateSetting('color.tint', Number(event.target.value)));
+$('#color-hue').addEventListener('input', (event) => actions.updateSetting('color.hue', Number(event.target.value)));
+$('#color-opacity').addEventListener('input', (event) => actions.updateSetting('color.opacity', Number(event.target.value)));
+document.querySelectorAll('[data-curve-channel]').forEach((button) => button.addEventListener('click', () => {
+  activeCurveChannel = button.dataset.curveChannel;
+  syncCurveControls(getEffectiveSettings(store.getState()).color);
+}));
+['shadows', 'midtones', 'highlights'].forEach((tone) => {
+  $(`#curve-${tone}`).addEventListener('input', (event) => actions.updateSetting(`color.curves.${activeCurveChannel}.${tone}`, Number(event.target.value)));
+});
+$('#reset-color-settings').addEventListener('click', () => {
+  activeCurveChannel = 'rgb';
+  actions.resetColorSettings();
+  toast('颜色设置已还原');
+});
 $('#watermark-enabled').addEventListener('change', (event) => actions.updateSetting('watermark.enabled', event.target.checked));
 $('#watermark-type').addEventListener('change', (event) => actions.updateSetting('watermark.type', event.target.value));
 $('#watermark-text').addEventListener('input', (event) => actions.updateSetting('watermark.text', event.target.value));
@@ -752,6 +1043,11 @@ $('#close-log-button').addEventListener('click', () => $('#log-dialog').close())
 $('#undo-button').addEventListener('click', () => store.undo());
 $('#redo-button').addEventListener('click', () => store.redo());
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && colorPickerState) {
+    event.preventDefault();
+    cancelColorPicking();
+    return;
+  }
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
   if (event.key.toLowerCase() === 'z' && !event.shiftKey) { event.preventDefault(); store.undo(); }
   if (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey)) { event.preventDefault(); store.redo(); }
@@ -969,6 +1265,10 @@ $('#preview-stage').addEventListener('wheel', (event) => {
 let cropDragging = false;
 let cropPointer = { x: 0, y: 0 };
 $('#canvas-wrap').addEventListener('pointerdown', (event) => {
+  if (pickColorFromPreview(event)) {
+    event.preventDefault();
+    return;
+  }
   const state = store.getState();
   const brushPoint = getAiBrushPoint(event, state);
   if (aiBrushMode !== 'off' && brushPoint && getEffectiveSettings(state).ai.enabled) {

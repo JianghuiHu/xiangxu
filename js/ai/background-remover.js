@@ -1,4 +1,4 @@
-import { AI_MODEL_CATALOG, getModelSession, loadOrtRuntime } from './model-manager.js?v=5';
+import { AI_MODEL_CATALOG, getModelSession, loadOrtRuntime } from './model-manager.js?v=6';
 import { adjustMask } from './mask-adjustments.js?v=1';
 
 const maskCache = new Map();
@@ -68,7 +68,15 @@ function normalizeMask(output, outputMode = 'alpha') {
     const range = Math.max(1e-6, max - min);
     for (let index = 0; index < length; index += 1) data[index] = (output.data[index] - min) / range;
   }
-  return { width, height, data };
+  let minimum = 1;
+  let maximum = 0;
+  let sum = 0;
+  for (const value of data) {
+    minimum = Math.min(minimum, value);
+    maximum = Math.max(maximum, value);
+    sum += value;
+  }
+  return { width, height, data, stats: { minimum, maximum, average: data.length ? sum / data.length : 0 } };
 }
 
 function rememberMask(key, mask) {
@@ -125,6 +133,9 @@ function composeResult(source, mask, settings, edits) {
   context.imageSmoothingQuality = 'high';
   context.drawImage(maskCanvas, 0, 0, result.width, result.height);
   context.globalCompositeOperation = 'source-over';
+  result.aiMaskStats = [mask.stats?.minimum, mask.stats?.maximum, mask.stats?.average]
+    .map((value) => Number.isFinite(value) ? value.toFixed(6) : '')
+    .join(',');
   maskCanvas.width = 1; maskCanvas.height = 1;
   return result;
 }

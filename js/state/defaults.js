@@ -26,7 +26,27 @@ export const initialState = Object.freeze({
     canvas: { enabled: false, width: 1024, height: 1024, background: { type: 'transparent', color: '#ffffff' } },
     position: { margin: 0, alignment: 'center', offsetX: 0, offsetY: 0 },
     subject: { enabled: false, widthPercent: 80, heightPercent: 72, alignment: 'center' },
-    color: { enabled: false, mode: 'none', source: '#ffffff', target: '#000000', tolerance: 24, brightness: 100, contrast: 100, saturation: 100, opacity: 100 },
+    color: {
+      enabled: false,
+      mode: 'none',
+      source: '#ffffff',
+      target: '#000000',
+      tolerance: 24,
+      exposure: 0,
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      temperature: 0,
+      tint: 0,
+      hue: 0,
+      opacity: 100,
+      curves: {
+        rgb: { shadows: 0, midtones: 0, highlights: 0 },
+        r: { shadows: 0, midtones: 0, highlights: 0 },
+        g: { shadows: 0, midtones: 0, highlights: 0 },
+        b: { shadows: 0, midtones: 0, highlights: 0 }
+      }
+    },
     watermark: { enabled: false, type: 'text', text: '© 像序', fontSize: 32, weight: 600, color: '#ffffff', opacity: 65, rotation: 0, alignment: 'bottom-right', margin: 24, tiled: false, imageDataUrl: '', imageName: '', imageScale: 20 },
     compression: { targetEnabled: false, targetKB: 200, minQuality: 20, allowResize: false },
     inspection: { maxKB: 2048, minWidth: 256, minHeight: 256 },

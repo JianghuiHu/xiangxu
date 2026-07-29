@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "title": "更多开源模型",
+  "description": "这里仅提供第三方项目介绍与下载入口。像序不会自动下载、导入或缓存这些外部模型。",
+  "cachePolicy": "none",
+  "models": [
+    {
+      "id": "ppmattingv2-external",
+      "name": "PP-MattingV2",
+      "ecosystem": "PaddleSeg 图像分割开发套件",
+      "category": "人像模型",
+      "summary": "PaddleSeg 中面向实时人像抠图的轻量模型，兼顾人物语义与发丝等边缘细节。",
+      "license": {
+        "name": "Apache-2.0",
+        "note": "PaddleSeg 仓库许可证；模型使用与分发仍应核对对应下载页说明。",
+        "url": "https://github.com/PaddlePaddle/PaddleSeg/blob/release/2.10/LICENSE"
+      },
+      "scenarios": [
+        "单人或多人肖像",
+        "证件照与人物背景替换",
+        "人像视频帧抠图"
+      ],
+      "runtime": "PaddlePaddle / FastDeploy；官方推理包面向 Paddle 运行环境。",
+      "compatibility": {
+        "status": "unsupported",
+        "label": "不能直接导入像序网页版",
+        "detail": "官方推理包不是像序当前所需的已适配 ONNX 输入输出格式，下载后不能直接导入或使用。"
+      },
+      "adaptation": {
+        "title": "官方 Paddle 推理包接入路径",
+        "steps": [
+          "下载并确认具体 PP-MattingV2 权重、版本与许可证",
+          "转换为浏览器兼容 ONNX，并固定输入尺寸和输入名称",
+          "校准归一化参数、Alpha 输出节点与前后处理",
+          "通过边缘、透明度、性能和批量导出回归测试后再注册"
+        ],
+        "result": "适配完成前只能查看资料，不能替换像序内置 PP-MattingV2。"
+      },
+      "links": [
+        {
+          "label": "官方项目说明",
+          "kind": "official-project",
+          "url": "https://github.com/PaddlePaddle/PaddleSeg/tree/release/2.10/Matting",
+          "sourceLabel": "PaddlePaddle 官方仓库",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        },
+        {
+          "label": "官方推理包",
+          "kind": "download",
+          "url": "https://paddleseg.bj.bcebos.com/dygraph/matting/PP-MattingV2.zip",
+          "sourceLabel": "PaddleSeg 模型存储",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        },
+        {
+          "label": "国内源码镜像",
+          "kind": "mirror",
+          "url": "https://gitcode.com/gh_mirrors/pa/PaddleSeg",
+          "sourceLabel": "GitCode 国内源码镜像 · 非官方仓库",
+          "official": false,
+          "newWindow": true,
+          "thirdParty": true
+        }
+      ]
+    },
+    {
+      "id": "modnet-external",
+      "name": "MODNet",
+      "ecosystem": "MODNet 独立开源项目",
+      "category": "人像模型",
+      "summary": "仅需 RGB 输入的实时人像抠图方案，适合肖像图片和视频背景替换。",
+      "license": {
+        "name": "Apache-2.0",
+        "note": "官方仓库说明代码、模型与演示采用 Apache-2.0，doc/gif 目录除外。",
+        "url": "https://github.com/ZHKKKe/MODNet/blob/master/LICENSE"
+      },
+      "scenarios": [
+        "实时人像抠图",
+        "摄像头背景替换",
+        "肖像图片精细边缘处理"
+      ],
+      "runtime": "官方实现以 PyTorch 为主；仓库同时提供 ONNX 转换示例。",
+      "compatibility": {
+        "status": "adaptation-required",
+        "label": "需要转换与适配",
+        "detail": "即使转换为 ONNX，也需要匹配像序的输入尺寸、归一化、输出通道和后处理约定。"
+      },
+      "adaptation": {
+        "title": "MODNet 接入路径",
+        "steps": [
+          "从官方仓库选择预训练权重并核对许可范围",
+          "按官方示例导出浏览器兼容 ONNX，固定动态输入",
+          "建立 MODNet 专用适配器，声明归一化和 Alpha 输出节点",
+          "完成肖像、发丝、空背景、批量处理和内存占用测试"
+        ],
+        "result": "验证通过后才能作为可启用模型出现；当前只提供项目与下载入口。"
+      },
+      "links": [
+        {
+          "label": "官方项目",
+          "kind": "official-project",
+          "url": "https://github.com/ZHKKKe/MODNet",
+          "sourceLabel": "MODNet 官方仓库",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        },
+        {
+          "label": "预训练模型说明",
+          "kind": "download",
+          "url": "https://github.com/ZHKKKe/MODNet/tree/master/pretrained",
+          "sourceLabel": "MODNet 官方仓库",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        }
+      ]
+    },
+    {
+      "id": "birefnet-external",
+      "name": "BiRefNet",
+      "ecosystem": "BiRefNet 独立开源项目",
+      "category": "通用 / 高分辨率",
+      "summary": "面向高分辨率主体分割与通用抠图的模型家族，提供 general matting 和 portrait matting 等权重。",
+      "license": {
+        "name": "MIT",
+        "note": "代码仓库采用 MIT；具体权重的使用条件应以相应模型下载页为准。",
+        "url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE"
+      },
+      "scenarios": [
+        "复杂物体与通用前景",
+        "高分辨率图片",
+        "人像或通用 Alpha Matting"
+      ],
+      "runtime": "PyTorch / Transformers；高分辨率模型通常更适合具备 GPU 的桌面环境。",
+      "compatibility": {
+        "status": "adaptation-required",
+        "label": "需要转换与适配",
+        "detail": "官方权重不是像序可直接加载的浏览器 ONNX 包，需要单独转换、验证精度并实现前后处理。"
+      },
+      "adaptation": {
+        "title": "BiRefNet 接入路径",
+        "steps": [
+          "先选择 general、portrait 等具体权重，不能把整个模型家族视作一个文件",
+          "导出浏览器支持算子的 ONNX 并评估模型体积与内存峰值",
+          "建立输入尺寸、颜色归一化、输出 Mask 和缩放恢复适配器",
+          "完成复杂物体、高分辨率降采样、批量取消和导出一致性测试"
+        ],
+        "result": "大型权重可能不适合网页版；验证失败时只保留桌面引擎候选状态。"
+      },
+      "links": [
+        {
+          "label": "官方项目",
+          "kind": "official-project",
+          "url": "https://github.com/ZhengPeng7/BiRefNet",
+          "sourceLabel": "BiRefNet 官方仓库",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        },
+        {
+          "label": "模型下载页",
+          "kind": "download",
+          "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
+          "sourceLabel": "作者 Hugging Face 模型页",
+          "official": true,
+          "newWindow": true,
+          "thirdParty": true
+        }
+      ]
+    }
+  ]
+}

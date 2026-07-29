@@ -1,6 +1,6 @@
 import { formatBytes } from '../utils/format.js';
-import { renderCanvasPipeline } from '../render/canvas-pipeline.js?v=5';
-import { removeBackgroundWithAi } from '../ai/background-remover.js?v=5';
+import { renderCanvasPipeline } from '../render/canvas-pipeline.js?v=7';
+import { removeBackgroundWithAi } from '../ai/background-remover.js?v=8';
 import { getEffectiveSettings } from '../state/selectors.js';
 
 export function createPreviewRenderer(elements) {
@@ -60,6 +60,7 @@ export function createPreviewRenderer(elements) {
         context.imageSmoothingQuality = 'high';
         context.drawImage(bitmap, 0, 0, elements.canvas.width, elements.canvas.height);
       }
+      const aiMaskStats = aiCanvas?.aiMaskStats || '';
       bitmap.close?.();
       if (aiCanvas) { aiCanvas.width = 1; aiCanvas.height = 1; }
       elements.canvas.dataset.renderMode = state.previewMode;
@@ -73,6 +74,8 @@ export function createPreviewRenderer(elements) {
         elements.canvas.dataset.mask = [pipelineResult.mask.type, pipelineResult.mask.x, pipelineResult.mask.y, pipelineResult.mask.width, pipelineResult.mask.height, pipelineResult.mask.radius].map((value) => typeof value === 'number' ? Math.round(value * 100) / 100 : value).join(',');
         elements.canvas.dataset.alphaProbe = pipelineResult.alphaProbe.join(',');
         elements.canvas.dataset.rgbaProbe = pipelineResult.rgbaProbe.map((rgba) => rgba.join(':')).join(',');
+        if (aiMaskStats) elements.canvas.dataset.aiMaskStats = aiMaskStats;
+        else delete elements.canvas.dataset.aiMaskStats;
       } else {
         delete elements.canvas.dataset.drawRect;
         delete elements.canvas.dataset.background;
@@ -98,7 +101,7 @@ export function createPreviewRenderer(elements) {
       elements.info.innerHTML = `<span>${escapeHtml(imageRecord.name)}</span><span>${modeLabel}</span><span>${formatBytes(imageRecord.size)}</span>`;
       elements.onRendered?.();
     } catch (error) {
-      if (settings.ai?.enabled) elements.onAiProgress?.(100, 'AI 处理已结束');
+      if (settings.ai?.enabled) elements.onAiProgress?.(100, 'AI 处理失败');
       elements.onError(`预览失败：${error.message}`);
     }
   }

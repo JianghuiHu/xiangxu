@@ -12,9 +12,9 @@
 
 该模型面向人像抠图，不应宣传为通用商品抠图模型。应用只在用户启用 AI 抠图时加载它；默认图片处理流程不启动 ONNX 推理，也不发起模型下载。
 
-## 可选下载模型
+## 内置通用模型
 
-`u2netp` 不随安装包内置，用户在模型下拉框选择后可主动下载：
+`u2netp.onnx` 随产品内置，可在无网络环境下直接使用：
 
 - 来源：`https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx`
 - 大小：4,574,861 bytes

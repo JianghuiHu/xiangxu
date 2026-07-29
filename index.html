@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="./css/reset.css">
   <link rel="stylesheet" href="./css/tokens.css">
   <link rel="stylesheet" href="./css/layout.css">
-  <link rel="stylesheet" href="./css/components.css">
+  <link rel="stylesheet" href="./css/components.css?v=2">
   <link rel="stylesheet" href="./css/utilities.css">
 </head>
 <body>
@@ -119,7 +119,7 @@
           <section class="setting-card" id="ai-section"><button class="setting-title" type="button"><span><b>AI</b>AI 一键抠图</span><i>⌃</i></button><div class="setting-body">
             <p class="section-explainer"><strong>本地 AI 抠图</strong>模型只在启用 AI 时加载，图片和推理数据不会上传。PP-MattingV2 主要面向人物，不等同于通用商品抠图。</p>
             <label class="switch-row"><span><strong>启用 AI 抠图</strong><small>透明结果进入后续去边、画布与输出流程</small></span><input id="ai-enabled" type="checkbox" disabled></label>
-            <label class="control-label">模型<select id="ai-model-select"><option value="ppmattingv2">PP-MattingV2 · 可选人像模型</option><option value="u2netp">u2netp · 可选通用模型</option></select></label>
+            <label class="control-label">模型<select id="ai-model-select"><optgroup label="内置离线模型"><option value="ppmattingv2">PP-MattingV2 · 人像模型</option><option value="u2netp">u2netp · 通用模型</option></optgroup><optgroup id="external-model-options" label="外部开源模型 · 需转换适配"></optgroup></select></label>
             <div class="ai-model-status" id="ai-model-status"><span class="status-dot"></span><div><strong>正在检测模型</strong><small>首次启动不会自动下载模型</small></div></div>
             <div class="button-row ai-model-actions"><button class="button button-secondary" id="ai-download-model" type="button">下载所选模型</button><button class="button button-secondary is-hidden" id="ai-cancel-model-download" type="button">取消下载</button><button class="button button-secondary danger-text" id="ai-delete-model" type="button" disabled>删除已下载模型</button></div>
             <label class="range-control"><span>前景阈值 <output id="ai-threshold-output">0.50</output></span><input id="ai-threshold" type="range" min="0.05" max="0.95" step="0.05" value="0.5"></label>
@@ -133,7 +133,8 @@
             <div class="ai-brush-meta"><span id="ai-brush-status">画笔未启用</span><button class="text-button danger" id="ai-brush-clear" type="button" disabled>清除当前图笔触</button></div>
             <button class="button button-secondary button-block compact-button" id="ai-reset-adjustments" type="button">一键还原抠图</button>
             <div class="ai-progress-panel is-hidden" id="ai-progress-panel" role="status" aria-live="polite"><div><strong id="ai-progress-label">准备中</strong><span id="ai-progress-percent">0%</span></div><progress class="ai-progress" id="ai-progress" max="100" value="0" aria-label="AI 模型处理进度"></progress><small id="ai-progress-hint">模型只在本机加载与运行</small></div>
-            <p class="stage-note">GitHub/Vercel 源码版不包含 PP-MattingV2 权重；u2netp 仅在你点击下载后获取。模型推理和图片始终在本机完成。</p>
+            <p class="stage-note">PP-MattingV2 与 u2netp 均为内置离线模型，无需下载。其他开源模型只提供第三方下载入口，需完成 ONNX 转换和输入输出适配后才能接入像序。</p>
+            <div class="external-model-entry"><div><strong>想了解其他开源方案？</strong><small>只查看项目资料，不会下载到像序缓存</small></div><button class="button button-secondary" id="open-external-models" type="button">更多开源模型</button></div>
           </div></section>
           <section class="setting-card" id="trim-section"><button class="setting-title" type="button"><span><b>01</b>自动去边</span><i>⌃</i></button><div class="setting-body">
             <label class="switch-row"><span><strong>启用自动去边</strong><small>检测主体有效边界后裁除边缘</small></span><input id="trim-enabled" type="checkbox"></label>
@@ -187,12 +188,46 @@
           </div></section>
           <section class="setting-card" id="color-section"><button class="setting-title" type="button"><span><b>07</b>颜色处理</span><i>⌃</i></button><div class="setting-body">
             <label class="switch-row"><span><strong>启用颜色处理</strong><small>透明像素不会被误处理</small></span><input id="color-enabled" type="checkbox"></label>
-            <label class="control-label">处理方式<select id="color-mode"><option value="none">仅调整参数</option><option value="replace">近似颜色替换</option><option value="colorToTransparent">选取颜色转透明</option><option value="grayscale">灰度化</option><option value="invert">反白</option></select></label>
-            <div class="color-control is-hidden" id="color-source-row"><span id="color-source-label">来源颜色</span><input id="color-source" type="color" value="#ffffff"><input id="color-source-text" type="text" value="#FFFFFF" maxlength="7" aria-label="来源颜色十六进制值"></div>
-            <div class="color-control is-hidden" id="color-target-row"><span>目标颜色</span><input id="color-target" type="color" value="#000000"><input id="color-target-text" type="text" value="#000000" maxlength="7" aria-label="目标颜色十六进制值"></div>
+            <span class="control-caption">处理方式</span>
+            <div class="color-mode-tabs" id="color-mode-tabs" role="tablist" aria-label="颜色处理方式">
+              <button class="active" type="button" role="tab" aria-selected="true" data-color-mode="none">基础调整</button>
+              <button type="button" role="tab" aria-selected="false" data-color-mode="replace">颜色替换</button>
+              <button type="button" role="tab" aria-selected="false" data-color-mode="colorToTransparent">转透明</button>
+              <button type="button" role="tab" aria-selected="false" data-color-mode="grayscale">灰度</button>
+              <button type="button" role="tab" aria-selected="false" data-color-mode="invert">反相</button>
+            </div>
+            <p class="stage-note color-mode-description" id="color-mode-description">调整整张图片的明暗、色彩和 RGB 曲线。</p>
+            <p class="color-picker-hint is-hidden" id="color-picker-hint" role="status">点击中间预览图片吸取颜色，按 Esc 取消。</p>
+            <div class="color-control is-hidden" id="color-source-row"><span id="color-source-label">来源颜色</span><input id="color-source" type="color" value="#ffffff"><input id="color-source-text" type="text" value="#FFFFFF" maxlength="7" aria-label="来源颜色十六进制值"><button class="color-picker-button" type="button" data-color-picker-path="color.source" aria-label="从图片吸取来源颜色">吸色</button></div>
+            <div class="color-control is-hidden" id="color-target-row"><span>目标颜色</span><input id="color-target" type="color" value="#000000"><input id="color-target-text" type="text" value="#000000" maxlength="7" aria-label="目标颜色十六进制值"><button class="color-picker-button" type="button" data-color-picker-path="color.target" aria-label="从图片吸取目标颜色">吸色</button></div>
             <label class="range-control is-hidden" id="color-tolerance-row"><span>颜色容差 <output id="color-tolerance-output">24</output></span><input id="color-tolerance" type="range" min="0" max="100" value="24"></label>
-            <div class="field-grid"><label>亮度（%）<input id="color-brightness" type="number" min="0" max="200" value="100"></label><span class="dimension-link">/</span><label>对比度（%）<input id="color-contrast" type="number" min="0" max="200" value="100"></label></div>
-            <div class="field-grid"><label>饱和度（%）<input id="color-saturation" type="number" min="0" max="200" value="100"></label><span class="dimension-link">/</span><label>透明度（%）<input id="color-opacity" type="number" min="0" max="100" value="100"></label></div>
+            <div id="color-basic-adjustments">
+            <div class="subsection-divider">基础调整</div>
+            <label class="range-control"><span>曝光 <output id="color-exposure-output">0.0 EV</output></span><input id="color-exposure" type="range" min="-3" max="3" step="0.1" value="0"></label>
+            <label class="range-control"><span>亮度 <output id="color-brightness-output">100%</output></span><input id="color-brightness" type="range" min="0" max="200" value="100"></label>
+            <label class="range-control"><span>对比度 <output id="color-contrast-output">100%</output></span><input id="color-contrast" type="range" min="0" max="200" value="100"></label>
+            <label class="range-control"><span>饱和度 <output id="color-saturation-output">100%</output></span><input id="color-saturation" type="range" min="0" max="200" value="100"></label>
+            <label class="range-control"><span>色温 <output id="color-temperature-output">0</output></span><input id="color-temperature" type="range" min="-100" max="100" value="0"></label>
+            <label class="range-control"><span>色调 <output id="color-tint-output">0</output></span><input id="color-tint" type="range" min="-100" max="100" value="0"></label>
+            <label class="range-control"><span>色相 <output id="color-hue-output">0°</output></span><input id="color-hue" type="range" min="-180" max="180" value="0"></label>
+            <label class="range-control"><span>透明度 <output id="color-opacity-output">100%</output></span><input id="color-opacity" type="range" min="0" max="100" value="100"></label>
+            <div class="subsection-divider">RGB 曲线</div>
+            <div class="curve-channel-tabs" id="curve-channel-tabs" role="tablist" aria-label="RGB 曲线通道">
+              <button class="active" type="button" role="tab" aria-selected="true" data-curve-channel="rgb">RGB</button>
+              <button type="button" role="tab" aria-selected="false" data-curve-channel="r">红</button>
+              <button type="button" role="tab" aria-selected="false" data-curve-channel="g">绿</button>
+              <button type="button" role="tab" aria-selected="false" data-curve-channel="b">蓝</button>
+            </div>
+            <svg class="color-curve-preview" viewBox="0 0 100 100" role="img" aria-label="当前颜色曲线">
+              <path class="curve-grid" d="M0 25H100M0 50H100M0 75H100M25 0V100M50 0V100M75 0V100"></path>
+              <path class="curve-diagonal" d="M0 100L100 0"></path>
+              <polyline id="color-curve-line" points="0,100 100,0"></polyline>
+            </svg>
+            <label class="range-control"><span>暗部 <output id="curve-shadows-output">0</output></span><input id="curve-shadows" type="range" min="-100" max="100" value="0"></label>
+            <label class="range-control"><span>中间调 <output id="curve-midtones-output">0</output></span><input id="curve-midtones" type="range" min="-100" max="100" value="0"></label>
+            <label class="range-control"><span>高光 <output id="curve-highlights-output">0</output></span><input id="curve-highlights" type="range" min="-100" max="100" value="0"></label>
+            <button class="button button-secondary button-block" id="reset-color-settings" type="button">还原颜色设置</button>
+            </div>
           </div></section>
           <section class="setting-card" id="watermark-section"><button class="setting-title" type="button"><span><b>08</b>水印</span><i>⌃</i></button><div class="setting-body">
             <label class="switch-row"><span><strong>启用水印</strong><small>文字或本地 Logo，实时预览</small></span><input id="watermark-enabled" type="checkbox"></label>
@@ -254,6 +289,8 @@
   <dialog class="preset-dialog preset-form-dialog" id="import-preset-dialog"><form method="dialog" id="import-preset-form"><div class="dialog-heading"><strong>导入预设 JSON</strong><button id="close-import-preset-dialog" type="button" aria-label="关闭导入预设">×</button></div><div class="dialog-content"><label class="control-label">粘贴预设 JSON<textarea id="preset-json-input" rows="12" required spellcheck="false" placeholder="支持单个预设、导出文件或预设数组"></textarea></label><label class="button button-secondary file-picker-label">从文件读取<input class="visually-hidden" id="preset-file-input" type="file" accept="application/json,.json"></label></div><div class="dialog-actions"><button class="button button-secondary" id="cancel-import-preset-dialog" type="button">取消</button><button class="button button-primary" value="default" type="submit">导入</button></div></form></dialog>
   <dialog class="preset-dialog" id="inspection-dialog"><div class="dialog-heading"><div><strong>文件检查报告</strong><small id="inspection-summary">尚未扫描</small></div><button id="close-inspection-dialog" type="button" aria-label="关闭检查报告">×</button></div><div class="inspection-tools"><button class="button button-secondary" id="export-inspection-report" type="button">导出 Markdown 报告</button></div><div class="inspection-list" id="inspection-list"></div></dialog>
   <dialog class="preset-dialog preset-form-dialog" id="confirm-dialog"><form method="dialog" id="confirm-dialog-form"><div class="dialog-heading"><strong id="confirm-dialog-title">确认操作</strong><button value="cancel" type="submit" aria-label="关闭确认对话框">×</button></div><div class="dialog-content"><p id="confirm-dialog-message"></p></div><div class="dialog-actions"><button class="button button-secondary" value="cancel" type="submit">取消</button><button class="button button-primary danger-button" id="confirm-dialog-confirm" value="confirm" type="submit">确认</button></div></form></dialog>
-  <script type="module" src="./js/app.js?v=22"></script>
+  <dialog class="preset-dialog external-model-dialog" id="external-model-dialog"><div class="dialog-heading"><div><strong>更多开源模型</strong><small>第三方项目资料与下载入口</small></div><button id="close-external-models" type="button" aria-label="关闭更多开源模型">×</button></div><div class="external-model-notice" role="note"><strong>仅供了解与自行评估</strong><span>这些模型不会下载到像序缓存，也不会自动接入处理流水线。许可证、权重条款和运行要求以第三方项目页面为准。</span></div><div class="external-model-list" id="external-model-list" aria-live="polite"><div class="external-model-loading">正在读取模型目录…</div></div><div class="dialog-actions"><button class="button button-secondary" id="close-external-models-footer" type="button">关闭</button></div></dialog>
+  <dialog class="preset-dialog preset-form-dialog external-link-dialog" id="external-link-dialog"><div class="dialog-heading"><strong>即将访问第三方网站</strong><button id="cancel-external-link-icon" type="button" aria-label="关闭第三方网站提示">×</button></div><div class="dialog-content"><p>你将离开像序并在新窗口打开第三方页面。像序不会向该网站发送你的图片或模型缓存。</p><div class="external-link-target"><span id="external-link-label">外部链接</span><strong id="external-link-host">第三方网站</strong><small id="external-link-source"></small></div></div><div class="dialog-actions"><button class="button button-secondary" id="cancel-external-link" type="button">取消</button><button class="button button-primary" id="confirm-external-link" type="button">继续前往</button></div></dialog>
+  <script type="module" src="./js/app.js?v=33"></script>
 </body>
 </html>

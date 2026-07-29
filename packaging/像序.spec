@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\index.html', 'app'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\assets', 'app\\assets'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\css', 'app\\css'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\js', 'app\\js'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\vendor', 'app\\vendor'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\workers', 'app\\workers'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\README.md', 'app'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\THIRD_PARTY_NOTICES.md', 'app')]
+datas = [('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\index.html', 'app'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\assets', 'app\\assets'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\css', 'app\\css'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\js', 'app\\js'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\models', 'app\\models'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\vendor', 'app\\vendor'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\workers', 'app\\workers'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\README.md', 'app'), ('C:\\Users\\hu\\Documents\\小工具-批量图片处理\\THIRD_PARTY_NOTICES.md', 'app')]
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('webview')

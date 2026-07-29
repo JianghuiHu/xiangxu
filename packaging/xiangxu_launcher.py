@@ -21,20 +21,22 @@ SLOGAN = "万象归序，创作从容"
 
 class DesktopApi:
     def __init__(self) -> None:
-        self.window = None
+        # pywebview 会把公开属性递归暴露给 JavaScript。窗口对象包含原生
+        # AccessibilityObject，必须保持私有，否则会递归扫描并卡死 UI 线程。
+        self._window = None
         self._streams: dict[str, tuple[Path, object]] = {}
         self._lock = threading.Lock()
 
-    def attach(self, window) -> None:
-        self.window = window
+    def _attach(self, window) -> None:
+        self._window = window
 
     def begin_save(self, filename: str):
-        if self.window is None:
+        if self._window is None:
             raise RuntimeError("Desktop window is not ready")
         safe_name = Path(filename or "xiangxu-export.zip").name
         dialog_enum = getattr(webview, "FileDialog", None)
         dialog_type = dialog_enum.SAVE if dialog_enum is not None else webview.SAVE_DIALOG
-        selected = self.window.create_file_dialog(dialog_type, save_filename=safe_name)
+        selected = self._window.create_file_dialog(dialog_type, save_filename=safe_name)
         if not selected:
             return {"cancelled": True}
         selected_path = selected if isinstance(selected, str) else selected[0]
@@ -78,7 +80,7 @@ class DesktopApi:
             pass
         return {"ok": True}
 
-    def close_all(self) -> None:
+    def _close_all(self) -> None:
         with self._lock:
             entries = list(self._streams.values())
             self._streams.clear()
@@ -100,6 +102,9 @@ class LocalAppHandler(http.server.SimpleHTTPRequestHandler):
     extensions_map = {
         **http.server.SimpleHTTPRequestHandler.extensions_map,
         ".js": "text/javascript; charset=utf-8",
+        ".mjs": "text/javascript; charset=utf-8",
+        ".wasm": "application/wasm",
+        ".onnx": "application/octet-stream",
         ".css": "text/css; charset=utf-8",
         ".json": "application/json; charset=utf-8",
         ".svg": "image/svg+xml",
@@ -145,14 +150,14 @@ def main() -> None:
             hidden=test_mode,
             js_api=api,
         )
-        api.attach(window)
+        api._attach(window)
         def close_test_window() -> None:
             time.sleep(3)
             window.destroy()
 
         webview.start(close_test_window if test_mode else None, gui="edgechromium", debug=False, private_mode=False, storage_path=str(storage))
     finally:
-        api.close_all()
+        api._close_all()
         server.shutdown()
         server.server_close()
 
